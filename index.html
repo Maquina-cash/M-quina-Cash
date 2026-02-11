@@ -745,19 +745,16 @@
 </head>
 <body>
     <div id="app-container">
-        <!-- LOADER -->
         <div id="loader">
             <div class="spinner"></div>
             <p style="color:#FFD700;margin-top:10px;font-size:14px;">Carregando...</p>
         </div>
 
-        <!-- BOTÃO FLUTUANTE SUPORTE (SÓ APARECE NA ABA ROLETA) -->
         <button class="btn-suporte-flutuante" id="btnSuporteFlutuante" onclick="abrirSuporteWhatsApp()">
             <i class="fab fa-whatsapp"></i>
             <span>Suporte</span>
         </button>
 
-        <!-- LOGIN -->
         <div class="screen active" id="loginScreen">
             <div class="login-box">
                 <div class="logo">
@@ -787,7 +784,6 @@
             </div>
         </div>
 
-        <!-- APP -->
         <div class="screen" id="appScreen">
             <div class="app-wrapper">
                 <div class="header">
@@ -799,7 +795,6 @@
                 </div>
                 
                 <div class="content" id="mainContent">
-                    <!-- ABA ROLETa -->
                     <div class="tab-panel active" id="tabRoleta">
                         <div class="checkin" id="checkinBox">
                             <h4><i class="fas fa-calendar-check"></i> Check-in Diario</h4>
@@ -844,7 +839,6 @@
                         </div>
                     </div>
                     
-                    <!-- ABA LOJA -->
                     <div class="tab-panel" id="tabLoja">
                         <div class="item-list">
                             <div class="item">
@@ -884,7 +878,6 @@
                         </div>
                     </div>
                     
-                    <!-- ABA SAQUE -->
                     <div class="tab-panel" id="tabSaque">
                         <div class="item-list">
                             <div class="item">
@@ -923,7 +916,6 @@
                         </div>
                     </div>
                     
-                    <!-- ABA HISTORICO (PEDIDOS E SAQUES) -->
                     <div class="tab-panel" id="tabHist">
                         <h3 style="color:#FFD700;margin-bottom:15px;text-align:center;">
                             <i class="fas fa-shopping-bag"></i> Meus Pedidos
@@ -934,7 +926,6 @@
                         <div style="height: 100px;"></div>
                     </div>
                     
-                    <!-- ABA EXTRATO (PONTOS) -->
                     <div class="tab-panel" id="tabExtrato">
                         <div class="saldo-atual">
                             <div class="label">Seu Saldo</div>
@@ -950,7 +941,6 @@
                     </div>
                 </div>
                 
-                <!-- NAVEGAÇÃO COM 5 ABAS -->
                 <div class="nav">
                     <button class="nav-btn active" onclick="mudarTab('roleta', this)">
                         <i class="fas fa-dice"></i>
@@ -1007,7 +997,7 @@
 
     <script>
         // ==========================================
-        // CONFIGURAÇÃO DO FIREBASE - TROQUE AQUI SE PRECISAR
+        // CONFIGURAÇÃO DO FIREBASE - VERIFIQUE SE ESTÁ CORRETO
         // ==========================================
         const FIREBASE_API_KEY = "AIzaSyBP1pHiHCTimWPAIK3Cr0W8PzxZb4Vq-V4";
         const FIREBASE_AUTH_DOMAIN = "maquinadecash-26552.firebaseapp.com";
@@ -1017,9 +1007,9 @@
         const FIREBASE_MESSAGING_SENDER_ID = "701020144898";
         const FIREBASE_APP_ID = "1:701020144898:web:3346028543122a72a7ae1b";
         const FIREBASE_MEASUREMENT_ID = "G-HKFTWYF5NQ";
+        
         // ==========================================
         
-        // FORÇA TELA PRETA IMEDIATAMENTE
         document.body.style.backgroundColor = '#0a0a0a';
         document.documentElement.style.backgroundColor = '#0a0a0a';
         document.body.style.height = window.innerHeight + 'px';
@@ -1046,9 +1036,12 @@
             if (typeof firebase !== 'undefined') {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.database();
+                console.log('Firebase conectado com sucesso!');
+            } else {
+                console.error('Firebase não carregado');
             }
         } catch(e) {
-            console.log('Firebase erro:', e);
+            console.error('Firebase erro:', e);
         }
         
         let usuario = null;
@@ -1061,7 +1054,7 @@
         const MAX_GIROS = 10;
         const BONUS_CHECKIN = 40;
         const PREMIOS = [3,5,8,10,12,15,18,20,25,30,35,40,45,50];
-        const SUPORTE_WHATSAPP = '5582994331905'; // SEU NÚMERO
+        const SUPORTE_WHATSAPP = '5582994331905';
         
         function gerarID() {
             return Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -1179,6 +1172,7 @@
                 iniciarApp();
                 
             } catch(e) {
+                console.error('Erro no login:', e);
                 toast('Erro de conexao!', 'erro');
             }
         }
