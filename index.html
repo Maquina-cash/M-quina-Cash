@@ -222,7 +222,6 @@
             height: calc(100% - 120px);
         }
         
-        /* BOTÃO FLUTUANTE SUPORTE - SÓ APARECE NA ABA ROLETA */
         .btn-suporte-flutuante {
             position: fixed;
             bottom: 80px;
@@ -454,7 +453,6 @@
             color: white;
         }
         
-        /* HISTORICO - CORREÇÃO MOTIVO */
         .hist-item {
             background: #1a1a1a;
             border-radius: 12px;
@@ -505,7 +503,6 @@
         .tag-recusado { background: #ff4444; color: white; }
         .tag-cancelado { background: #666; color: white; }
         
-        /* MOTIVO - DESTAQUE MAIOR */
         .hist-motivo {
             background: rgba(255, 68, 68, 0.15);
             border: 1px solid #ff4444;
@@ -532,7 +529,6 @@
             font-size: 13px;
         }
         
-        /* EXTRATO */
         .extrato-item {
             background: #1a1a1a;
             border-radius: 12px;
@@ -1010,6 +1006,19 @@
     </div>
 
     <script>
+        // ==========================================
+        // CONFIGURAÇÃO DO FIREBASE - TROQUE AQUI SE PRECISAR
+        // ==========================================
+        const FIREBASE_API_KEY = "AIzaSyBP1pHiHCTimWPAIK3Cr0W8PzxZb4Vq-V4";
+        const FIREBASE_AUTH_DOMAIN = "maquinadecash-26552.firebaseapp.com";
+        const FIREBASE_DATABASE_URL = "https://maquinadecash-26552-default-rtdb.firebaseio.com";
+        const FIREBASE_PROJECT_ID = "maquinadecash-26552";
+        const FIREBASE_STORAGE_BUCKET = "maquinadecash-26552.firebasestorage.app";
+        const FIREBASE_MESSAGING_SENDER_ID = "701020144898";
+        const FIREBASE_APP_ID = "1:701020144898:web:3346028543122a72a7ae1b";
+        const FIREBASE_MEASUREMENT_ID = "G-HKFTWYF5NQ";
+        // ==========================================
+        
         // FORÇA TELA PRETA IMEDIATAMENTE
         document.body.style.backgroundColor = '#0a0a0a';
         document.documentElement.style.backgroundColor = '#0a0a0a';
@@ -1022,14 +1031,14 @@
         };
         
         const firebaseConfig = {
-            apiKey: "AIzaSyBP1pHiHCTimWPAIK3Cr0W8PzxZb4Vq-V4",
-            authDomain: "maquinadecash-26552.firebaseapp.com",
-            databaseURL: "https://maquinadecash-26552-default-rtdb.firebaseio.com",
-            projectId: "maquinadecash-26552",
-            storageBucket: "maquinadecash-26552.firebasestorage.app",
-            messagingSenderId: "701020144898",
-            appId: "1:701020144898:web:3346028543122a72a7ae1b",
-            measurementId: "G-HKFTWYF5NQ"
+            apiKey: FIREBASE_API_KEY,
+            authDomain: FIREBASE_AUTH_DOMAIN,
+            databaseURL: FIREBASE_DATABASE_URL,
+            projectId: FIREBASE_PROJECT_ID,
+            storageBucket: FIREBASE_STORAGE_BUCKET,
+            messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+            appId: FIREBASE_APP_ID,
+            measurementId: FIREBASE_MEASUREMENT_ID
         };
 
         let db = null;
@@ -1483,14 +1492,12 @@
             });
         }
         
-        // FUNÇÃO SUPORTE WHATSAPP
         function abrirSuporteWhatsApp() {
             const mensagem = `Olá! Preciso de ajuda com o app Máquina de CASH.%0A%0AMeu ID: ${usuario ? usuario.id : '---'}%0ANome: ${usuario ? usuario.nome : '---'}%0A%0AAssunto: `;
             const url = `https://wa.me/${SUPORTE_WHATSAPP}?text=${mensagem}`;
             window.open(url, '_blank');
         }
         
-        // CORREÇÃO: CARREGAR HISTORICO COM MÚLTIPLAS TENTATIVAS PARA APPSGEYSER
         let tentativasHist = 0;
         async function carregarHist() {
             const lista = document.getElementById('listaHist');
@@ -1498,13 +1505,11 @@
             
             lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
             
-            // DELAY PARA APPSGEYSER
             await new Promise(r => setTimeout(r, 800));
             
             const itens = [];
             
             try {
-                // TENTA CARREGAR PEDIDOS
                 const snapPedidos = await db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(50).once('value');
                 const pedidos = snapPedidos.val() || {};
                 
@@ -1523,7 +1528,6 @@
             }
             
             try {
-                // TENTA CARREGAR SAQUES
                 const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(50).once('value');
                 const saques = snapSaques.val() || {};
                 
@@ -1615,7 +1619,6 @@
             }
         }
         
-        // CORREÇÃO: CARREGAR EXTRATO COM MÚLTIPLAS TENTATIVAS
         let tentativasExtrato = 0;
         async function carregarExtrato() {
             const lista = document.getElementById('listaExtrato');
@@ -1688,7 +1691,6 @@
             }
         }
         
-        // CONTROLE DO BOTÃO FLUTUANTE SUPORTE
         function controlarBotaoSuporte(abaAtual) {
             const btnSuporte = document.getElementById('btnSuporteFlutuante');
             if (!btnSuporte) return;
@@ -1714,7 +1716,6 @@
             if (tab) tab.classList.add('active');
             if (btn) btn.classList.add('active');
             
-            // CONTROLA O BOTÃO FLUTUANTE
             controlarBotaoSuporte(aba);
             
             if (aba === 'hist') {
@@ -1750,7 +1751,6 @@
             });
         }
         
-        // CORREÇÃO RESIZE PARA APPSGEYSER
         window.addEventListener('resize', function() {
             document.body.style.height = window.innerHeight + 'px';
             const mainContent = document.getElementById('mainContent');
