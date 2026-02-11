@@ -239,7 +239,6 @@
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
-            animation: pulsarSuporte 2s infinite;
         }
         
         .btn-suporte-flutuante.show {
@@ -248,11 +247,6 @@
         
         .btn-suporte-flutuante i {
             font-size: 20px;
-        }
-        
-        @keyframes pulsarSuporte {
-            0%, 100% { transform: scale(1); box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6); }
         }
         
         .checkin {
@@ -285,6 +279,10 @@
             font-weight: 700;
             border: none;
             width: 100%;
+        }
+        
+        .btn-checkin:disabled {
+            opacity: 0.5;
         }
         
         .stats {
@@ -512,8 +510,6 @@
             font-size: 13px;
             color: #ffaaaa;
             line-height: 1.5;
-            display: block !important;
-            visibility: visible !important;
         }
         
         .hist-motivo strong {
@@ -522,11 +518,6 @@
             margin-bottom: 5px;
             font-size: 12px;
             text-transform: uppercase;
-        }
-        
-        .hist-motivo-texto {
-            color: #fff;
-            font-size: 13px;
         }
         
         .extrato-item {
@@ -543,7 +534,6 @@
         
         .extrato-item.entrada { border-left-color: #00C851; }
         .extrato-item.saida { border-left-color: #ff4444; }
-        .extrato-item.devolucao { border-left-color: #2196F3; }
         
         .extrato-info {
             flex: 1;
@@ -571,7 +561,6 @@
         
         .extrato-pontos.positivo { color: #00C851; }
         .extrato-pontos.negativo { color: #ff4444; }
-        .extrato-pontos.devolucao { color: #2196F3; }
         
         .saldo-atual {
             background: linear-gradient(135deg, #FFD700, #FFA500);
@@ -723,24 +712,6 @@
             background: #333;
             border-radius: 2px;
         }
-        
-        @keyframes girar {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .girando {
-            animation: girar 0.5s linear infinite;
-        }
-        
-        .pulsar {
-            animation: pulsar 2s infinite;
-        }
-        
-        @keyframes pulsar {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-        }
     </style>
 </head>
 <body>
@@ -765,15 +736,15 @@
                 <div class="card">
                     <div class="input-group">
                         <label>Seu Nome</label>
-                        <input type="text" id="nomeInput" placeholder="Digite seu nome" maxlength="20">
+                        <input type="text" id="nomeInput" placeholder="Digite seu nome" maxlength="20" autocomplete="off">
                     </div>
                     
                     <div class="input-group">
                         <label>PIN (4 digitos)</label>
-                        <input type="password" id="pinInput" placeholder="0000" maxlength="4">
+                        <input type="password" id="pinInput" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]*">
                     </div>
                     
-                    <button class="btn btn-yellow" onclick="entrar()">
+                    <button class="btn btn-yellow" onclick="entrar()" id="btnEntrar">
                         ENTRAR
                     </button>
                     
@@ -799,7 +770,7 @@
                         <div class="checkin" id="checkinBox">
                             <h4><i class="fas fa-calendar-check"></i> Check-in Diario</h4>
                             <p>Ganhe 40 pontos todo dia!</p>
-                            <button class="btn-checkin pulsar" id="btnCheckin" onclick="fazerCheckin()">
+                            <button class="btn-checkin" id="btnCheckin" onclick="fazerCheckin()">
                                 RESGATAR 40 PONTOS
                             </button>
                         </div>
@@ -826,7 +797,7 @@
                         </div>
                         
                         <div class="roleta-box">
-                            <div class="roleta-display">
+                            <div class="roleta-display" id="roletaDisplay">
                                 <div class="roleta-num" id="roletaN">?</div>
                                 <div class="roleta-text" id="roletaTxt">Toque para girar</div>
                             </div>
@@ -970,8 +941,8 @@
             <div class="modal-box">
                 <h3>Comprar Diamantes</h3>
                 <p><span id="qtdDiam">0</span> diamantes = R$ <span id="precoDiam">0</span></p>
-                <input type="text" class="modal-input" id="idFree" placeholder="ID do Free Fire">
-                <input type="text" class="modal-input" id="nickFree" placeholder="Seu nick no jogo">
+                <input type="text" class="modal-input" id="idFree" placeholder="ID do Free Fire" inputmode="numeric">
+                <input type="text" class="modal-input" id="nickFree" placeholder="Seu nick no jogo" autocomplete="off">
                 <div class="modal-btns">
                     <button class="btn btn-red" onclick="fecharModal('modalCompra')">Cancelar</button>
                     <button class="btn btn-green" onclick="confirmarCompra()">Confirmar</button>
@@ -984,7 +955,7 @@
                 <h3>Confirmar Saque</h3>
                 <p>R$ <span id="valSaque">0</span> (<span id="ptsSaque">0</span> pts)</p>
                 <input type="text" class="modal-input" id="chavePix" placeholder="Chave PIX">
-                <input type="text" class="modal-input" id="nomePix" placeholder="Nome completo">
+                <input type="text" class="modal-input" id="nomePix" placeholder="Nome completo" autocomplete="name">
                 <div class="modal-btns">
                     <button class="btn btn-red" onclick="fecharModal('modalSaque')">Cancelar</button>
                     <button class="btn btn-green" onclick="confirmarSaque()">Sacar</button>
@@ -997,53 +968,22 @@
 
     <script>
         // ==========================================
-        // CONFIGURAÇÃO DO FIREBASE - VERIFIQUE SE ESTÁ CORRETO
+        // CONFIGURAÇÃO FIREBASE
         // ==========================================
-        const FIREBASE_API_KEY = "AIzaSyBP1pHiHCTimWPAIK3Cr0W8PzxZb4Vq-V4";
-        const FIREBASE_AUTH_DOMAIN = "maquinadecash-26552.firebaseapp.com";
-        const FIREBASE_DATABASE_URL = "https://maquinadecash-26552-default-rtdb.firebaseio.com";
-        const FIREBASE_PROJECT_ID = "maquinadecash-26552";
-        const FIREBASE_STORAGE_BUCKET = "maquinadecash-26552.firebasestorage.app";
-        const FIREBASE_MESSAGING_SENDER_ID = "701020144898";
-        const FIREBASE_APP_ID = "1:701020144898:web:3346028543122a72a7ae1b";
-        const FIREBASE_MEASUREMENT_ID = "G-HKFTWYF5NQ";
-        
-        // ==========================================
-        
-        document.body.style.backgroundColor = '#0a0a0a';
-        document.documentElement.style.backgroundColor = '#0a0a0a';
-        document.body.style.height = window.innerHeight + 'px';
-        
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Erro: ' + msg);
-            document.getElementById('loader').style.display = 'none';
-            return false;
-        };
-        
         const firebaseConfig = {
-            apiKey: FIREBASE_API_KEY,
-            authDomain: FIREBASE_AUTH_DOMAIN,
-            databaseURL: FIREBASE_DATABASE_URL,
-            projectId: FIREBASE_PROJECT_ID,
-            storageBucket: FIREBASE_STORAGE_BUCKET,
-            messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
-            appId: FIREBASE_APP_ID,
-            measurementId: FIREBASE_MEASUREMENT_ID
+            apiKey: "AIzaSyBP1pHiHCTimWPAIK3Cr0W8PzxZb4Vq-V4",
+            authDomain: "maquinadecash-26552.firebaseapp.com",
+            databaseURL: "https://maquinadecash-26552-default-rtdb.firebaseio.com",
+            projectId: "maquinadecash-26552",
+            storageBucket: "maquinadecash-26552.firebasestorage.app",
+            messagingSenderId: "701020144898",
+            appId: "1:701020144898:web:3346028543122a72a7ae1b"
         };
 
+        // ==========================================
+        // VARIÁVEIS GLOBAIS
+        // ==========================================
         let db = null;
-        try {
-            if (typeof firebase !== 'undefined') {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-                console.log('Firebase conectado com sucesso!');
-            } else {
-                console.error('Firebase não carregado');
-            }
-        } catch(e) {
-            console.error('Firebase erro:', e);
-        }
-        
         let usuario = null;
         let dados = null;
         let ref = null;
@@ -1055,29 +995,45 @@
         const BONUS_CHECKIN = 40;
         const PREMIOS = [3,5,8,10,12,15,18,20,25,30,35,40,45,50];
         const SUPORTE_WHATSAPP = '5582994331905';
-        
+
+        // ==========================================
+        // FUNÇÕES UTILITÁRIAS
+        // ==========================================
+        function $(id) {
+            return document.getElementById(id);
+        }
+
         function gerarID() {
             return Math.floor(10000000 + Math.random() * 90000000).toString();
         }
-        
+
         function hoje() {
             return new Date().toDateString();
         }
-        
+
         function toast(msg, tipo) {
-            const t = document.getElementById('toast');
+            const t = $('toast');
             if (!t) return;
             t.textContent = msg;
             t.className = tipo || '';
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
         }
-        
-        function iniciarSistema() {
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            document.body.style.backgroundColor = '#0a0a0a';
+            document.body.style.height = window.innerHeight + 'px';
+            
             try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                console.log('Firebase conectado');
+                
                 setTimeout(function() {
-                    const loader = document.getElementById('loader');
-                    if (loader) loader.style.display = 'none';
+                    $('loader').style.display = 'none';
                     
                     const salvo = localStorage.getItem('mc_user');
                     if (salvo) {
@@ -1090,26 +1046,17 @@
                     }
                 }, 800);
             } catch(e) {
-                document.getElementById('loader').style.display = 'none';
+                console.error('Erro Firebase:', e);
+                toast('Erro de conexão!', 'erro');
             }
-        }
-        
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', iniciarSistema);
-        } else {
-            iniciarSistema();
-        }
-        
-        setTimeout(iniciarSistema, 2000);
-        
+        });
+
+        // ==========================================
+        // LOGIN
+        // ==========================================
         async function entrar() {
-            const nomeInput = document.getElementById('nomeInput');
-            const pinInput = document.getElementById('pinInput');
-            
-            if (!nomeInput || !pinInput) return;
-            
-            const nome = nomeInput.value.trim();
-            const pin = pinInput.value.trim();
+            const nome = $('nomeInput').value.trim();
+            const pin = $('pinInput').value.trim();
             
             if (nome.length < 3) {
                 toast('Nome muito curto!', 'erro');
@@ -1119,35 +1066,36 @@
                 toast('PIN precisa ter 4 numeros!', 'erro');
                 return;
             }
-            
             if (!db) {
                 toast('Erro de conexao!', 'erro');
                 return;
             }
             
+            const btn = $('btnEntrar');
+            btn.disabled = true;
+            btn.textContent = 'ENTRANDO...';
+            
             try {
-                const snap = await db.ref('users').once('value');
-                const users = snap.val() || {};
-                
+                const snap = await db.ref('users').orderByChild('nome').equalTo(nome).limitToFirst(1).once('value');
                 let achou = null;
                 let uid = null;
                 
-                for (const [id, u] of Object.entries(users)) {
-                    if (u.nome === nome) {
-                        achou = u;
-                        uid = id;
-                        break;
-                    }
-                }
+                snap.forEach(function(child) {
+                    achou = child.val();
+                    uid = child.key;
+                });
                 
                 if (achou) {
-                    if (achou.banido === true || achou.banned === true) {
-                        const motivo = achou.banReason || achou.banidoReason || 'Conta suspensa!';
-                        toast('Conta suspensa! Motivo: ' + motivo, 'erro');
+                    if (achou.banido) {
+                        toast('Conta suspensa!', 'erro');
+                        btn.disabled = false;
+                        btn.textContent = 'ENTRAR';
                         return;
                     }
                     if (achou.pin !== pin) {
                         toast('PIN incorreto!', 'erro');
+                        btn.disabled = false;
+                        btn.textContent = 'ENTRAR';
                         return;
                     }
                     usuario = { id: uid, ...achou };
@@ -1172,37 +1120,30 @@
                 iniciarApp();
                 
             } catch(e) {
-                console.error('Erro no login:', e);
+                console.error(e);
                 toast('Erro de conexao!', 'erro');
+                btn.disabled = false;
+                btn.textContent = 'ENTRAR';
             }
         }
-        
+
         function iniciarApp() {
-            const loginScreen = document.getElementById('loginScreen');
-            const appScreen = document.getElementById('appScreen');
-            const nomeUser = document.getElementById('nomeUser');
-            const idUser = document.getElementById('idUser');
-            
-            if (!loginScreen || !appScreen || !nomeUser || !idUser || !usuario) return;
-            
-            loginScreen.classList.remove('active');
-            appScreen.classList.add('active');
-            
-            nomeUser.textContent = usuario.nome;
-            idUser.textContent = 'ID: ' + usuario.id;
+            $('loginScreen').classList.remove('active');
+            $('appScreen').classList.add('active');
+            $('nomeUser').textContent = usuario.nome;
+            $('idUser').textContent = 'ID: ' + usuario.id;
             
             if (db) {
                 db.ref('users/' + usuario.id).update({ ultimoAcesso: Date.now() });
                 
                 ref = db.ref('users/' + usuario.id);
-                ref.on('value', snap => {
+                ref.on('value', function(snap) {
                     if (!snap.exists()) return;
                     dados = snap.val();
                     
-                    if (dados.banido === true || dados.banned === true) {
-                        const motivo = dados.banReason || dados.banidoReason || 'Conta suspensa!';
-                        toast('Conta suspensa! Motivo: ' + motivo, 'erro');
-                        setTimeout(sair, 4000);
+                    if (dados.banido) {
+                        toast('Conta suspensa!', 'erro');
+                        setTimeout(sair, 3000);
                         return;
                     }
                     
@@ -1211,7 +1152,7 @@
                 });
             }
         }
-        
+
         function verificarDia() {
             if (!dados || !ref) return;
             
@@ -1224,99 +1165,78 @@
                 toast('Novo dia! Giros renovados!', 'ok');
             }
         }
-        
+
         function atualizarTela() {
             if (!dados) return;
             
-            const pontosNum = document.getElementById('pontosNum');
-            const girosNum = document.getElementById('girosNum');
-            const girosTxt = document.getElementById('girosTxt');
-            const barraProg = document.getElementById('barraProg');
-            const btnGirar = document.getElementById('btnGirar');
-            const roletaTxt = document.getElementById('roletaTxt');
-            const btnCheck = document.getElementById('btnCheckin');
-            const boxCheck = document.getElementById('checkinBox');
-            
-            if (pontosNum) pontosNum.textContent = dados.pontos || 0;
-            
+            const pontos = dados.pontos || 0;
             const giros = dados.giros || 0;
-            if (girosNum) girosNum.textContent = giros;
-            if (girosTxt) girosTxt.textContent = giros + '/' + MAX_GIROS;
-            if (barraProg) barraProg.style.width = (giros / MAX_GIROS * 100) + '%';
             
-            if (btnGirar) {
-                if (giros <= 0) {
-                    btnGirar.disabled = true;
-                    btnGirar.textContent = 'FIM';
-                    if (roletaTxt) roletaTxt.textContent = 'Volte amanha!';
-                } else {
-                    btnGirar.disabled = false;
-                    btnGirar.textContent = 'GIRAR';
-                    if (roletaTxt) roletaTxt.textContent = 'Toque para girar';
-                }
+            $('pontosNum').textContent = pontos;
+            $('girosNum').textContent = giros;
+            $('girosTxt').textContent = giros + '/' + MAX_GIROS;
+            $('barraProg').style.width = (giros / MAX_GIROS * 100) + '%';
+            $('extratoSaldo').textContent = pontos;
+
+            const btnGirar = $('btnGirar');
+            const roletaTxt = $('roletaTxt');
+            
+            if (giros <= 0) {
+                btnGirar.disabled = true;
+                btnGirar.textContent = 'FIM';
+                roletaTxt.textContent = 'Volte amanha!';
+            } else {
+                btnGirar.disabled = false;
+                btnGirar.textContent = 'GIRAR';
+                roletaTxt.textContent = 'Toque para girar';
             }
-            
-            if (btnCheck && boxCheck) {
-                if (dados.fezCheckin) {
-                    btnCheck.disabled = true;
-                    btnCheck.textContent = 'FEITO HOJE';
-                    btnCheck.classList.remove('pulsar');
-                    boxCheck.style.borderColor = '#00C851';
-                } else {
-                    btnCheck.disabled = false;
-                    btnCheck.textContent = 'RESGATAR 40 PONTOS';
-                    btnCheck.classList.add('pulsar');
-                    boxCheck.style.borderColor = '#ff006e';
-                }
+
+            const btnCheck = $('btnCheckin');
+            const boxCheck = $('checkinBox');
+            if (dados.fezCheckin) {
+                btnCheck.disabled = true;
+                btnCheck.textContent = 'FEITO HOJE';
+                boxCheck.style.borderColor = '#00C851';
+            } else {
+                btnCheck.disabled = false;
+                btnCheck.textContent = 'RESGATAR 40 PONTOS';
+                boxCheck.style.borderColor = '#ff006e';
             }
         }
-        
+
         function fazerCheckin() {
-            if (!dados || !ref) return;
-            
-            if (dados.fezCheckin) {
+            if (!dados || !ref || dados.fezCheckin) {
                 toast('Ja resgatou hoje!', 'erro');
                 return;
             }
             
-            const pontosAtual = dados.pontos || 0;
-            const novoTotal = pontosAtual + BONUS_CHECKIN;
-            
+            const novoTotal = (dados.pontos || 0) + BONUS_CHECKIN;
             ref.update({
                 pontos: novoTotal,
                 fezCheckin: true
             });
-            
             addExtrato('checkin', 'Check-in Diario', BONUS_CHECKIN, novoTotal);
             toast('+' + BONUS_CHECKIN + ' pontos!', 'ok');
         }
-        
+
         function girar() {
-            if (!dados || !ref) return;
-            
-            if (girando || (dados.giros || 0) <= 0) {
+            if (!dados || !ref || girando || (dados.giros || 0) <= 0) {
                 toast('Sem giros!', 'erro');
                 return;
             }
             
             girando = true;
-            const num = document.getElementById('roletaN');
-            const txt = document.getElementById('roletaTxt');
-            const btn = document.getElementById('btnGirar');
-            
-            if (!num || !txt || !btn) {
-                girando = false;
-                return;
-            }
+            const num = $('roletaN');
+            const txt = $('roletaTxt');
+            const btn = $('btnGirar');
             
             btn.disabled = true;
-            num.classList.add('girando');
             txt.textContent = 'Girando...';
             
             ref.update({ giros: (dados.giros || 0) - 1 });
             
             let cont = 0;
-            const interval = setInterval(() => {
+            const interval = setInterval(function() {
                 num.textContent = PREMIOS[Math.floor(Math.random() * PREMIOS.length)];
                 cont++;
                 if (cont >= 20) {
@@ -1325,25 +1245,15 @@
                 }
             }, 100);
         }
-        
+
         function finalizarGiro() {
-            if (!dados || !ref) return;
-            
-            const num = document.getElementById('roletaN');
-            const txt = document.getElementById('roletaTxt');
-            
-            if (!num || !txt) {
-                girando = false;
-                return;
-            }
+            const num = $('roletaN');
+            const txt = $('roletaTxt');
             
             const premio = PREMIOS[Math.floor(Math.random() * PREMIOS.length)];
-            const pontosAtual = dados.pontos || 0;
-            const novoTotal = pontosAtual + premio;
+            const novoTotal = (dados.pontos || 0) + premio;
             
             num.textContent = premio;
-            num.classList.remove('girando');
-            
             ref.update({ pontos: novoTotal });
             addExtrato('roleta', 'Ganhou na Roleta', premio, novoTotal);
             
@@ -1351,34 +1261,30 @@
             txt.style.color = '#00C851';
             toast('Ganhou ' + premio + ' pontos!', 'ok');
             
-            setTimeout(() => {
+            setTimeout(function() {
                 girando = false;
                 txt.textContent = 'Toque para girar';
                 txt.style.color = '#888';
             }, 1500);
         }
-        
+
+        // ==========================================
+        // COMPRAS E SAQUES
+        // ==========================================
         function comprar(qtd, preco) {
             compraAtual = { qtd, preco };
-            const qtdDiam = document.getElementById('qtdDiam');
-            const precoDiam = document.getElementById('precoDiam');
-            const modal = document.getElementById('modalCompra');
-            
-            if (qtdDiam) qtdDiam.textContent = qtd;
-            if (precoDiam) precoDiam.textContent = preco.toFixed(2).replace('.', ',');
-            if (modal) modal.classList.add('show');
+            $('qtdDiam').textContent = qtd;
+            $('precoDiam').textContent = preco.toFixed(2).replace('.', ',');
+            $('modalCompra').classList.add('show');
+            $('idFree').value = '';
+            $('nickFree').value = '';
         }
-        
+
         function confirmarCompra() {
             if (!compraAtual || !db || !usuario) return;
             
-            const idFree = document.getElementById('idFree');
-            const nickFree = document.getElementById('nickFree');
-            
-            if (!idFree || !nickFree) return;
-            
-            const idJogo = idFree.value.trim();
-            const nick = nickFree.value.trim();
+            const idJogo = $('idFree').value.trim();
+            const nick = $('nickFree').value.trim();
             
             if (!idJogo || !nick) {
                 toast('Preencha todos os campos!', 'erro');
@@ -1402,38 +1308,27 @@
             if (ref) ref.child('pedidos/' + pedidoID).set(pedido);
             
             fecharModal('modalCompra');
-            idFree.value = '';
-            nickFree.value = '';
             toast('Pedido enviado!', 'ok');
         }
-        
+
         function sacar(pontos, valor) {
-            if (!dados) return;
-            
-            if ((dados.pontos || 0) < pontos) {
+            if (!dados || (dados.pontos || 0) < pontos) {
                 toast('Pontos insuficientes!', 'erro');
                 return;
             }
             saqueAtual = { pontos, valor };
-            const valSaque = document.getElementById('valSaque');
-            const ptsSaque = document.getElementById('ptsSaque');
-            const modal = document.getElementById('modalSaque');
-            
-            if (valSaque) valSaque.textContent = valor.toFixed(2).replace('.', ',');
-            if (ptsSaque) ptsSaque.textContent = pontos;
-            if (modal) modal.classList.add('show');
+            $('valSaque').textContent = valor.toFixed(2).replace('.', ',');
+            $('ptsSaque').textContent = pontos;
+            $('modalSaque').classList.add('show');
+            $('chavePix').value = '';
+            $('nomePix').value = '';
         }
-        
+
         function confirmarSaque() {
             if (!saqueAtual || !db || !usuario || !ref || !dados) return;
             
-            const chavePix = document.getElementById('chavePix');
-            const nomePix = document.getElementById('nomePix');
-            
-            if (!chavePix || !nomePix) return;
-            
-            const chave = chavePix.value.trim();
-            const nome = nomePix.value.trim();
+            const chave = $('chavePix').value.trim();
+            const nome = $('nomePix').value.trim();
             
             if (!chave || !nome) {
                 toast('Preencha todos os campos!', 'erro');
@@ -1463,21 +1358,16 @@
             addExtrato('saque', 'Solicitacao de Saque R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
             
             fecharModal('modalSaque');
-            chavePix.value = '';
-            nomePix.value = '';
             toast('Saque solicitado!', 'ok');
         }
-        
+
         function fecharModal(id) {
-            const modal = document.getElementById(id);
-            if (modal) modal.classList.remove('show');
+            $(id).classList.remove('show');
         }
-        
+
         function addExtrato(tipo, descricao, pontos, saldoApos) {
             if (!ref) return;
-            
-            const extratoRef = ref.child('extrato');
-            extratoRef.push({
+            ref.child('extrato').push({
                 tipo: tipo,
                 descricao: descricao,
                 pontos: pontos,
@@ -1485,29 +1375,45 @@
                 data: Date.now()
             });
         }
-        
+
         function abrirSuporteWhatsApp() {
-            const mensagem = `Olá! Preciso de ajuda com o app Máquina de CASH.%0A%0AMeu ID: ${usuario ? usuario.id : '---'}%0ANome: ${usuario ? usuario.nome : '---'}%0A%0AAssunto: `;
-            const url = `https://wa.me/${SUPORTE_WHATSAPP}?text=${mensagem}`;
-            window.open(url, '_blank');
+            const mensagem = 'Olá! Preciso de ajuda com o app Máquina de CASH.%0A%0AMeu ID: ' + (usuario ? usuario.id : '---') + '%0ANome: ' + (usuario ? usuario.nome : '---') + '%0A%0AAssunto: ';
+            window.open('https://wa.me/' + SUPORTE_WHATSAPP + '?text=' + mensagem, '_blank');
         }
-        
-        let tentativasHist = 0;
+
+        // ==========================================
+        // HISTÓRICO E EXTRATO - CORRIGIDO
+        // ==========================================
+        let carregandoHist = false;
+        let carregandoExt = false;
+
         async function carregarHist() {
-            const lista = document.getElementById('listaHist');
-            if (!lista || !db || !usuario) return;
+            if (carregandoHist) return;
+            carregandoHist = true;
+            
+            const lista = $('listaHist');
+            if (!lista || !db || !usuario) {
+                carregandoHist = false;
+                return;
+            }
             
             lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
             
-            await new Promise(r => setTimeout(r, 800));
-            
-            const itens = [];
-            
             try {
-                const snapPedidos = await db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(50).once('value');
-                const pedidos = snapPedidos.val() || {};
+                console.log('Carregando histórico para usuário:', usuario.id);
                 
-                for (const [id, p] of Object.entries(pedidos)) {
+                // Busca pedidos
+                const snapPedidos = await db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
+                console.log('Pedidos encontrados:', snapPedidos.numChildren());
+                
+                // Busca saques
+                const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
+                console.log('Saques encontrados:', snapSaques.numChildren());
+                
+                const itens = [];
+                
+                snapPedidos.forEach(function(child) {
+                    const p = child.val();
                     itens.push({
                         tipo: 'compra',
                         titulo: p.qtd + ' Diamantes',
@@ -1516,241 +1422,204 @@
                         motivo: p.motivo || p.motivoRejeicao || null,
                         data: p.data || 0
                     });
-                }
-            } catch(e) {
-                console.log('Erro pedidos:', e);
-            }
-            
-            try {
-                const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(50).once('value');
-                const saques = snapSaques.val() || {};
+                });
                 
-                for (const [id, s] of Object.entries(saques)) {
-                    let motivoEncontrado = null;
-                    if (s.motivo) motivoEncontrado = s.motivo;
-                    else if (s.motivoRejeicao) motivoEncontrado = s.motivoRejeicao;
-                    else if (s.rejectionReason) motivoEncontrado = s.rejectionReason;
-                    else if (s.razao) motivoEncontrado = s.razao;
-                    
+                snapSaques.forEach(function(child) {
+                    const s = child.val();
+                    let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
                     itens.push({
                         tipo: 'saque',
                         titulo: 'Saque R$ ' + (s.valor ? s.valor.toFixed(2).replace('.', ',') : '0,00'),
                         sub: (s.pontos || 0) + ' pontos',
                         status: s.status || 'pendente',
-                        motivo: motivoEncontrado,
+                        motivo: motivo,
                         data: s.data || 0
                     });
-                }
-            } catch(e) {
-                console.log('Erro saques:', e);
-            }
-            
-            itens.sort((a, b) => b.data - a.data);
-            
-            if (itens.length === 0) {
-                lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhum pedido ainda</p>';
-                return;
-            }
-            
-            const statusNome = { 
-                'pendente': 'Pendente', 
-                'aprovado': 'Aprovado', 
-                'aprovada': 'Aprovado',
-                'recusado': 'Recusado',
-                'rejeitado': 'Recusado',
-                'cancelado': 'Cancelado'
-            };
-            
-            let html = '';
-            for (const item of itens.slice(0, 50)) {
-                const status = item.status || 'pendente';
-                const statusLower = status.toLowerCase();
+                });
                 
-                let classe = 'pendente';
-                let tagClass = 'tag-pendente';
-                let tagText = statusNome[statusLower] || 'Pendente';
+                itens.sort(function(a, b) { return b.data - a.data; });
                 
-                if (statusLower === 'aprovado' || statusLower === 'aprovada') {
-                    classe = 'aprovado';
-                    tagClass = 'tag-aprovado';
-                } else if (statusLower === 'recusado' || statusLower === 'rejeitado' || statusLower === 'cancelado') {
-                    classe = 'recusado';
-                    tagClass = 'tag-recusado';
-                }
-                
-                let motivoHtml = '';
-                if (item.motivo && item.motivo.trim() !== '') {
-                    const motivoTexto = String(item.motivo).trim();
-                    motivoHtml = `
-                        <div class="hist-motivo" style="display:block !important;visibility:visible !important;">
-                            <strong>MOTIVO:</strong>
-                            <div class="hist-motivo-texto">${motivoTexto}</div>
-                        </div>
-                    `;
-                }
-                
-                html += `
-                    <div class="hist-item ${classe}">
-                        <div class="hist-header">
-                            <div>
-                                <div class="hist-titulo">${item.titulo}</div>
-                                <div class="hist-sub">${item.sub}</div>
-                            </div>
-                            <span class="tag ${tagClass}">${tagText}</span>
-                        </div>
-                        ${motivoHtml}
-                    </div>
-                `;
-            }
-            
-            lista.innerHTML = html;
-            
-            if (html === '' && tentativasHist < 3) {
-                tentativasHist++;
-                setTimeout(carregarHist, 1000);
-            } else {
-                tentativasHist = 0;
-            }
-        }
-        
-        let tentativasExtrato = 0;
-        async function carregarExtrato() {
-            const lista = document.getElementById('listaExtrato');
-            const saldoEl = document.getElementById('extratoSaldo');
-            
-            if (!lista || !saldoEl || !db || !usuario) {
-                console.log('Erro: elementos não encontrados');
-                return;
-            }
-            
-            saldoEl.textContent = (dados && dados.pontos ? dados.pontos : 0).toLocaleString();
-            lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
-            
-            await new Promise(r => setTimeout(r, 800));
-            
-            try {
-                const snap = await db.ref('users/' + usuario.id + '/extrato').orderByChild('data').limitToLast(50).once('value');
-                const extratos = snap.val();
-                
-                if (!extratos || Object.keys(extratos).length === 0) {
-                    lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhuma movimentacao ainda</p>';
+                if (itens.length === 0) {
+                    lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhum pedido ainda</p>';
+                    carregandoHist = false;
                     return;
                 }
                 
-                const itens = Object.entries(extratos).sort((a, b) => b[1].data - a[1].data);
+                const statusNome = { 
+                    'pendente': ['Pendente', 'pendente', 'tag-pendente'], 
+                    'aprovado': ['Aprovado', 'aprovado', 'tag-aprovado'], 
+                    'aprovada': ['Aprovado', 'aprovado', 'tag-aprovado'],
+                    'recusado': ['Recusado', 'recusado', 'tag-recusado'],
+                    'rejeitado': ['Recusado', 'recusado', 'tag-recusado'],
+                    'cancelado': ['Cancelado', 'cancelado', 'tag-cancelado']
+                };
                 
                 let html = '';
-                for (const [id, item] of itens) {
+                for (let i = 0; i < itens.length && i < 30; i++) {
+                    const item = itens[i];
+                    const status = item.status || 'pendente';
+                    const statusLower = status.toLowerCase();
+                    const info = statusNome[statusLower] || ['Pendente', 'pendente', 'tag-pendente'];
+                    
+                    let motivoHtml = '';
+                    if (item.motivo) {
+                        motivoHtml = '<div class="hist-motivo"><strong>MOTIVO:</strong><div>' + item.motivo + '</div></div>';
+                    }
+                    
+                    html += '<div class="hist-item ' + info[1] + '">' +
+                        '<div class="hist-header">' +
+                        '<div>' +
+                        '<div class="hist-titulo">' + item.titulo + '</div>' +
+                        '<div class="hist-sub">' + item.sub + '</div>' +
+                        '</div>' +
+                        '<span class="tag ' + info[2] + '">' + info[0] + '</span>' +
+                        '</div>' +
+                        motivoHtml +
+                        '</div>';
+                }
+                
+                lista.innerHTML = html;
+                console.log('Histórico carregado com sucesso');
+                
+            } catch(e) {
+                console.error('Erro ao carregar histórico:', e);
+                lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Erro ao carregar. Tente novamente.</p>';
+            } finally {
+                carregandoHist = false;
+            }
+        }
+
+        async function carregarExtrato() {
+            if (carregandoExt) return;
+            carregandoExt = true;
+            
+            const lista = $('listaExtrato');
+            const saldoEl = $('extratoSaldo');
+            
+            if (!lista || !saldoEl || !db || !usuario) {
+                carregandoExt = false;
+                return;
+            }
+            
+            saldoEl.textContent = (dados && dados.pontos ? dados.pontos : 0);
+            lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando extrato...</p>';
+            
+            try {
+                console.log('Carregando extrato para usuário:', usuario.id);
+                
+                const snap = await db.ref('users/' + usuario.id + '/extrato').orderByChild('data').limitToLast(30).once('value');
+                console.log('Itens de extrato:', snap.numChildren());
+                
+                if (!snap.exists()) {
+                    lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhuma movimentacao ainda</p>';
+                    carregandoExt = false;
+                    return;
+                }
+                
+                const itens = [];
+                snap.forEach(function(child) {
+                    itens.push(child.val());
+                });
+                
+                itens.sort(function(a, b) { return b.data - a.data; });
+                
+                let html = '';
+                for (let i = 0; i < itens.length; i++) {
+                    const item = itens[i];
                     const data = new Date(item.data).toLocaleDateString('pt-BR');
                     const hora = new Date(item.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                     const pontos = parseInt(item.pontos) || 0;
                     const isEntrada = pontos > 0;
-                    const isDevolucao = item.tipo === 'devolucao';
                     
-                    let classe = isDevolucao ? 'devolucao' : (isEntrada ? 'entrada' : 'saida');
-                    let sinal = isEntrada ? '+' : '';
-                    let classePontos = isDevolucao ? 'devolucao' : (isEntrada ? 'positivo' : 'negativo');
-                    let icone = isDevolucao ? 'fa-undo' : (isEntrada ? 'fa-arrow-up' : 'fa-arrow-down');
+                    const classe = isEntrada ? 'entrada' : 'saida';
+                    const classePontos = isEntrada ? 'positivo' : 'negativo';
+                    const icone = isEntrada ? 'fa-arrow-up' : 'fa-arrow-down';
+                    const sinal = isEntrada ? '+' : '';
                     
-                    html += `
-                        <div class="extrato-item ${classe}">
-                            <div class="extrato-info">
-                                <h4><i class="fas ${icone}"></i> ${item.descricao || 'Movimentacao'}</h4>
-                                <p>${data} às ${hora}</p>
-                            </div>
-                            <div class="extrato-pontos ${classePontos}">
-                                ${sinal}${pontos} pts
-                            </div>
-                        </div>
-                    `;
+                    html += '<div class="extrato-item ' + classe + '">' +
+                        '<div class="extrato-info">' +
+                        '<h4><i class="fas ' + icone + '"></i> ' + (item.descricao || 'Movimentacao') + '</h4>' +
+                        '<p>' + data + ' às ' + hora + '</p>' +
+                        '</div>' +
+                        '<div class="extrato-pontos ' + classePontos + '">' +
+                        sinal + pontos + ' pts' +
+                        '</div>' +
+                        '</div>';
                 }
                 
                 lista.innerHTML = html;
-                
-                if (html === '' && tentativasExtrato < 3) {
-                    tentativasExtrato++;
-                    setTimeout(carregarExtrato, 1000);
-                } else {
-                    tentativasExtrato = 0;
-                }
+                console.log('Extrato carregado com sucesso');
                 
             } catch(e) {
-                console.log('Erro extrato:', e);
-                lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Erro ao carregar</p>';
-                
-                if (tentativasExtrato < 3) {
-                    tentativasExtrato++;
-                    setTimeout(carregarExtrato, 1000);
+                console.error('Erro ao carregar extrato:', e);
+                lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Erro ao carregar. Tente novamente.</p>';
+            } finally {
+                carregandoExt = false;
+            }
+        }
+
+        // ==========================================
+        // NAVEGAÇÃO
+        // ==========================================
+        function controlarBotaoSuporte(abaAtual) {
+            const btn = $('btnSuporteFlutuante');
+            if (btn) {
+                if (abaAtual === 'roleta') {
+                    btn.classList.add('show');
+                } else {
+                    btn.classList.remove('show');
                 }
             }
         }
-        
-        function controlarBotaoSuporte(abaAtual) {
-            const btnSuporte = document.getElementById('btnSuporteFlutuante');
-            if (!btnSuporte) return;
-            
-            if (abaAtual === 'roleta') {
-                btnSuporte.classList.add('show');
-            } else {
-                btnSuporte.classList.remove('show');
-            }
-        }
-        
+
         function mudarTab(aba, btn) {
-            const mainContent = document.getElementById('mainContent');
+            const mainContent = $('mainContent');
             if (mainContent) {
                 mainContent.scrollTop = 0;
-                mainContent.style.height = (window.innerHeight - 120) + 'px';
             }
             
-            document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-btn').forEach(function(b) {
+                b.classList.remove('active');
+            });
             
-            const tab = document.getElementById('tab' + aba.charAt(0).toUpperCase() + aba.slice(1));
+            const tab = $('tab' + aba.charAt(0).toUpperCase() + aba.slice(1));
             if (tab) tab.classList.add('active');
             if (btn) btn.classList.add('active');
             
             controlarBotaoSuporte(aba);
             
             if (aba === 'hist') {
-                tentativasHist = 0;
                 carregarHist();
             } else if (aba === 'extrato') {
-                tentativasExtrato = 0;
                 carregarExtrato();
             }
         }
-        
+
         function sair() {
             localStorage.removeItem('mc_user');
-            if (ref) ref.off();
+            if (ref) {
+                ref.off();
+                ref = null;
+            }
             usuario = null;
             dados = null;
+            carregandoHist = false;
+            carregandoExt = false;
             
-            const appScreen = document.getElementById('appScreen');
-            const loginScreen = document.getElementById('loginScreen');
-            const nomeInput = document.getElementById('nomeInput');
-            const pinInput = document.getElementById('pinInput');
-            
-            if (appScreen) appScreen.classList.remove('active');
-            if (loginScreen) loginScreen.classList.add('active');
-            if (nomeInput) nomeInput.value = '';
-            if (pinInput) pinInput.value = '';
+            $('appScreen').classList.remove('active');
+            $('loginScreen').classList.add('active');
+            $('nomeInput').value = '';
+            $('pinInput').value = '';
+            $('listaHist').innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
+            $('listaExtrato').innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando extrato...</p>';
         }
-        
-        const pinInput = document.getElementById('pinInput');
-        if (pinInput) {
-            pinInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') entrar();
-            });
-        }
-        
-        window.addEventListener('resize', function() {
-            document.body.style.height = window.innerHeight + 'px';
-            const mainContent = document.getElementById('mainContent');
-            if (mainContent) {
-                mainContent.style.height = (window.innerHeight - 120) + 'px';
-            }
+
+        // Event listener para Enter no PIN
+        $('pinInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') entrar();
         });
     </script>
 </body>
