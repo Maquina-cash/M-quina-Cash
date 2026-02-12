@@ -222,32 +222,64 @@
             height: calc(100% - 120px);
         }
         
-        .btn-suporte-flutuante {
+        /* ADICIONADO: Botão bola WhatsApp - LADO DIREITO */
+        .btn-bola-whatsapp {
             position: fixed;
             bottom: 80px;
             right: 15px;
+            width: 55px;
+            height: 55px;
             background: #25D366;
             color: white;
-            padding: 12px 20px;
-            border-radius: 50px;
+            border-radius: 50%;
             border: none;
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 28px;
             cursor: pointer;
-            z-index: 100;
             display: none;
             align-items: center;
-            gap: 8px;
+            justify-content: center;
             box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+            transition: transform 0.2s;
+            z-index: 100;
         }
         
-        .btn-suporte-flutuante.show {
+        .btn-bola-whatsapp:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-bola-whatsapp.show {
             display: flex;
         }
         
-        .btn-suporte-flutuante i {
-            font-size: 20px;
+        /* ADICIONADO: Botão bola Telegram - LADO ESQUERDO */
+        .btn-bola-telegram {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            width: 55px;
+            height: 55px;
+            background: #0088cc;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.4);
+            transition: transform 0.2s;
+            z-index: 100;
         }
+        
+        .btn-bola-telegram:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-bola-telegram.show {
+            display: flex;
+        }
+        /* FIM ADICIONADO */
         
         .checkin {
             background: #1a1a1a;
@@ -721,10 +753,15 @@
             <p style="color:#FFD700;margin-top:10px;font-size:14px;">Carregando...</p>
         </div>
 
-        <button class="btn-suporte-flutuante" id="btnSuporteFlutuante" onclick="abrirSuporteWhatsApp()">
-            <i class="fab fa-whatsapp"></i>
-            <span>Suporte</span>
+        <!-- ADICIONADO: Botões BOLA separados -->
+        <button class="btn-bola-telegram" id="btnBolaTelegram" onclick="abrirTelegram()" title="Grupo Telegram">
+            <i class="fab fa-telegram-plane"></i>
         </button>
+
+        <button class="btn-bola-whatsapp" id="btnBolaWhatsApp" onclick="abrirSuporteWhatsApp()" title="Suporte WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+        </button>
+        <!-- FIM ADICIONADO -->
 
         <div class="screen active" id="loginScreen">
             <div class="login-box">
@@ -1381,6 +1418,12 @@
             window.open('https://wa.me/' + SUPORTE_WHATSAPP + '?text=' + mensagem, '_blank');
         }
 
+        // ADICIONADO: Função para abrir Telegram
+        function abrirTelegram() {
+            window.open('https://t.me/+eVzOaVM2xehhNzkx', '_blank');
+        }
+        // FIM ADICIONADO
+
         // ==========================================
         // HISTÓRICO E EXTRATO - CORRIGIDO
         // ==========================================
@@ -1562,12 +1605,15 @@
         // NAVEGAÇÃO
         // ==========================================
         function controlarBotaoSuporte(abaAtual) {
-            const btn = $('btnSuporteFlutuante');
-            if (btn) {
+            const btnWpp = $('btnBolaWhatsApp');
+            const btnTel = $('btnBolaTelegram');
+            if (btnWpp && btnTel) {
                 if (abaAtual === 'roleta') {
-                    btn.classList.add('show');
+                    btnWpp.classList.add('show');
+                    btnTel.classList.add('show');
                 } else {
-                    btn.classList.remove('show');
+                    btnWpp.classList.remove('show');
+                    btnTel.classList.remove('show');
                 }
             }
         }
