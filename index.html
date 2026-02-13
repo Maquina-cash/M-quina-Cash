@@ -797,6 +797,53 @@
             color: #888;
             font-size: 11px;
         }
+        
+        .btn-atualizar-hist {
+            background: #0088cc;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        
+        .btn-atualizar-hist:active {
+            transform: scale(0.98);
+        }
+        
+        .aviso-saque-pendente {
+            background: rgba(255, 193, 7, 0.15);
+            border: 1px solid #FFC107;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .aviso-saque-pendente p {
+            color: #FFC107;
+            font-size: 12px;
+            margin: 0;
+        }
+        
+        .aviso-saque-pendente strong {
+            color: #FFD700;
+        }
+        
+        .btn-limpar {
+            background: #ff4444;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -943,6 +990,10 @@
                             <p id="limiteTexto">Você pode fazer 1 saque por dia</p>
                         </div>
                         
+                        <div id="avisoSaquePendente" class="aviso-saque-pendente" style="display:none;">
+                            <p><i class="fas fa-exclamation-triangle"></i> <strong>Atenção:</strong> Você tem saques pendentes. Aguarde a aprovação do administrador.</p>
+                        </div>
+                        
                         <div class="item-list">
                             <div class="item">
                                 <div>
@@ -989,6 +1040,12 @@
                     </div>
                     
                     <div class="tab-panel" id="tabHist">
+                        <button class="btn-atualizar-hist" onclick="carregarHist(true)">
+                            <i class="fas fa-sync-alt"></i> Atualizar Histórico
+                        </button>
+                        <button class="btn-limpar" onclick="limparSaquesAntigos()" id="btnLimpar" style="display:none;">
+                            <i class="fas fa-trash"></i> Limpar Saques Antigos
+                        </button>
                         <h3 style="color:#FFD700;margin-bottom:15px;text-align:center;">
                             <i class="fas fa-shopping-bag"></i> Meus Pedidos
                         </h3>
@@ -1102,12 +1159,14 @@
         let saqueAtual = null;
         let girando = false;
         let listenersAtivos = {};
+        let saquesListener = null;
+        let saquesAntigos = [];
         
         const MAX_GIROS = 10;
         const BONUS_CHECKIN = 40;
         const PREMIOS = [3,5,8,10,12,15,18,20,25,30,35,40,45,50];
         const SUPORTE_WHATSAPP = '5582994331905';
-        const LIMITE_SAQUES_PADRAO = 1; // Limite padrão de saques por dia
+        const LIMITE_SAQUES_PADRAO = 1;
 
         // ==========================================
         // FUNÇÕES UTILITÁRIAS
@@ -1223,7 +1282,7 @@
                         fezCheckin: false,
                         criado: Date.now(),
                         banido: false,
-                        limiteSaquesDia: LIMITE_SAQUES_PADRAO, // Limite padrão
+                        limiteSaquesDia: LIMITE_SAQUES_PADRAO,
                         saquesHoje: 0,
                         ultimoSaqueDia: ''
                     };
@@ -1266,9 +1325,11 @@
                     verificarDia();
                     atualizarTela();
                     atualizarInfoLimite();
+                    verificarSaquesPendentes();
                 });
                 
-                monitorarMeusSaques();
+                // Iniciar monitoramento em tempo real dos saques
+                iniciarMonitoramentoSaques();
             }
         }
 
@@ -1293,40 +1354,167 @@
             }
         }
 
-        function monitorarMeusSaques() {
+        // ==========================================
+        // VERIFICAR SAQUES PENDENTES
+        // ==========================================
+        function verificarSaquesPendentes() {
+            if (!dados || !dados.saques) return;
+            
+            let temPendente = false;
+            Object.values(dados.saques).forEach(function(saque) {
+                if (saque.status === 'pendente' || saque.status === 'processando') {
+                    temPendente = true;
+                }
+            });
+            
+            const aviso = $('avisoSaquePendente');
+            if (aviso) {
+                aviso.style.display = temPendente ? 'block' : 'none';
+            }
+        }
+
+        // ==========================================
+        // MONITORAMENTO EM TEMPO REAL DOS SAQUES
+        // ==========================================
+        function iniciarMonitoramentoSaques() {
             if (!db || !usuario) return;
             
-            if (listenersAtivos.saques) {
-                listenersAtivos.saques.off();
+            if (saquesListener) {
+                saquesListener.off();
             }
             
-            listenersAtivos.saques = db.ref('saques').orderByChild('userId').equalTo(usuario.id);
+            saquesListener = db.ref('saques').orderByChild('userId').equalTo(usuario.id);
             
-            listenersAtivos.saques.on('child_changed', function(snapshot) {
-                const saque = snapshot.val();
-                if (!saque) return;
+            saquesListener.on('value', function(snapshot) {
+                console.log('Saques atualizados:', snapshot.val());
                 
-                if (saque.status === 'concluido' && saque.notificado !== true) {
-                    db.ref('saques/' + snapshot.key).update({ notificado: true });
-                    toast('✅ Saque de R$ ' + saque.valor.toFixed(2) + ' confirmado!', 'ok');
+                if (snapshot.exists()) {
+                    const saquesAtualizados = {};
+                    snapshot.forEach(function(child) {
+                        saquesAtualizados[child.key] = child.val();
+                    });
                     
+                    if (!dados) dados = {};
+                    dados.saques = saquesAtualizados;
+                    
+                    // Verificar saques antigos pendentes
+                    verificarSaquesAntigos(snapshot);
+                    
+                    // Atualizar histórico se visível
                     if ($('tabHist').classList.contains('active')) {
-                        carregarHist();
+                        renderizarHistorico(snapshot);
                     }
+                    
+                    // Notificações
+                    snapshot.forEach(function(child) {
+                        const saque = child.val();
+                        if (!saque) return;
+                        
+                        if (saque.status === 'concluido' && saque.notificado !== true) {
+                            db.ref('saques/' + child.key).update({ notificado: true });
+                            toast('✅ Saque de R$ ' + saque.valor.toFixed(2) + ' confirmado!', 'ok');
+                        }
+                        
+                        if (saque.status === 'recusado' && saque.motivo && !saque.motivoMostrado) {
+                            db.ref('saques/' + child.key).update({ motivoMostrado: true });
+                            setTimeout(() => {
+                                alert('❌ Saque recusado!\n\nMotivo: ' + saque.motivo + '\n\nSeus pontos foram devolvidos.');
+                            }, 500);
+                        }
+                    });
                 }
                 
-                if (saque.status === 'recusado' && saque.motivo && !saque.motivoMostrado) {
-                    db.ref('saques/' + snapshot.key).update({ motivoMostrado: true });
-                    
-                    setTimeout(() => {
-                        alert('❌ Saque recusado!\n\nMotivo: ' + saque.motivo + '\n\nSeus pontos foram devolvidos.');
-                    }, 500);
-                    
-                    if ($('tabHist').classList.contains('active')) {
-                        carregarHist();
+                verificarSaquesPendentes();
+            });
+        }
+
+        // ==========================================
+        // VERIFICAR E LIMPAR SAQUES ANTIGOS
+        // ==========================================
+        function verificarSaquesAntigos(snapshot) {
+            saquesAntigos = [];
+            const agora = Date.now();
+            const limiteTempo = 24 * 60 * 60 * 1000; // 24 horas
+            
+            snapshot.forEach(function(child) {
+                const saque = child.val();
+                if (!saque) return;
+                
+                // Se pendente há mais de 24h, considera antigo
+                if (saque.status === 'pendente' && saque.dataSolicitacao) {
+                    const tempo = agora - saque.dataSolicitacao;
+                    if (tempo > limiteTempo) {
+                        saquesAntigos.push({
+                            key: child.key,
+                            ...saque
+                        });
                     }
                 }
             });
+            
+            // Mostrar botão de limpar se houver saques antigos
+            const btnLimpar = $('btnLimpar');
+            if (btnLimpar && saquesAntigos.length > 0) {
+                btnLimpar.style.display = 'block';
+                btnLimpar.innerHTML = '<i class="fas fa-trash"></i> Limpar ' + saquesAntigos.length + ' saque(s) antigo(s)';
+            } else if (btnLimpar) {
+                btnLimpar.style.display = 'none';
+            }
+        }
+
+        async function limparSaquesAntigos() {
+            if (!db || !usuario || saquesAntigos.length === 0) return;
+            
+            if (!confirm('Tem certeza que deseja excluir ' + saquesAntigos.length + ' saque(s) antigo(s) pendente(s)?\n\nOs pontos serão devolvidos ao usuário.')) {
+                return;
+            }
+            
+            const btn = $('btnLimpar');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Limpando...';
+            
+            try {
+                for (let saque of saquesAntigos) {
+                    // Devolver pontos ao usuário
+                    if (saque.pontos && saque.userId) {
+                        const userRef = db.ref('users/' + saque.userId);
+                        const userSnap = await userRef.once('value');
+                        if (userSnap.exists()) {
+                            const userData = userSnap.val();
+                            const pontosAtuais = userData.pontos || 0;
+                            await userRef.update({ pontos: pontosAtuais + saque.pontos });
+                            
+                            // Adicionar extrato de devolução
+                            await userRef.child('extrato').push({
+                                tipo: 'devolucao',
+                                descricao: 'Devolução saque cancelado (antigo)',
+                                pontos: saque.pontos,
+                                saldoApos: pontosAtuais + saque.pontos,
+                                data: Date.now()
+                            });
+                        }
+                    }
+                    
+                    // Excluir saque
+                    const updates = {};
+                    updates['saques/' + saque.key] = null;
+                    updates['users/' + saque.userId + '/saques/' + saque.key] = null;
+                    await db.ref().update(updates);
+                }
+                
+                toast(saquesAntigos.length + ' saque(s) antigo(s) removido(s)! Pontos devolvidos.', 'ok');
+                saquesAntigos = [];
+                btn.style.display = 'none';
+                
+                // Recarregar histórico
+                carregarHist(true);
+                
+            } catch(e) {
+                console.error('Erro ao limpar saques:', e);
+                toast('Erro ao limpar saques!', 'erro');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Tentar novamente';
+            }
         }
 
         function verificarDia() {
@@ -1495,18 +1683,11 @@
                 return;
             }
             
-            // Verificar limite de saques do dia
             const limite = dados.limiteSaquesDia || LIMITE_SAQUES_PADRAO;
             const saquesHoje = dados.saquesHoje || 0;
             
             if (saquesHoje >= limite) {
                 toast('Limite de saques diário atingido! Volte amanhã.', 'erro');
-                return;
-            }
-            
-            // Verificar se já tem saque pendente
-            if (dados.saquesPendentes && Object.keys(dados.saquesPendentes).length > 0) {
-                toast('Você já tem um saque em andamento. Aguarde a conclusão!', 'erro');
                 return;
             }
             
@@ -1531,7 +1712,6 @@
                 return;
             }
             
-            // Validar formato da chave
             if (tipoChave === 'CPF' && !/^\d{11}$/.test(chave.replace(/\D/g, ''))) {
                 toast('CPF inválido! Digite apenas números (11 dígitos)', 'erro');
                 return;
@@ -1563,21 +1743,26 @@
                 motivoRecusa: null
             };
             
-            // Salvar nos dois lugares e atualizar contador de saques
-            await db.ref('saques/' + saqueID).set(saque);
-            await ref.child('saques/' + saqueID).set(saque);
-            await ref.child('saquesPendentes/' + saqueID).set(true);
-            await ref.update({ 
-                pontos: novoTotal,
-                saquesHoje: saquesHoje,
-                ultimoSaqueDia: hoje()
-            });
-            
-            addExtrato('saque', 'Saque solicitado R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
-            
-            fecharModal('modalSaque');
-            toast('Saque solicitado! Aguarde aprovação do administrador.', 'ok');
-            atualizarInfoLimite();
+            try {
+                const updates = {};
+                updates['saques/' + saqueID] = saque;
+                updates['users/' + usuario.id + '/saques/' + saqueID] = saque;
+                updates['users/' + usuario.id + '/pontos'] = novoTotal;
+                updates['users/' + usuario.id + '/saquesHoje'] = saquesHoje;
+                updates['users/' + usuario.id + '/ultimoSaqueDia'] = hoje();
+                
+                await db.ref().update(updates);
+                
+                addExtrato('saque', 'Saque solicitado R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
+                
+                fecharModal('modalSaque');
+                toast('Saque solicitado! Aguarde aprovação do administrador.', 'ok');
+                atualizarInfoLimite();
+                
+            } catch(e) {
+                console.error('Erro ao criar saque:', e);
+                toast('Erro ao solicitar saque!', 'erro');
+            }
         }
 
         function fecharModal(id) {
@@ -1610,24 +1795,56 @@
         let carregandoHist = false;
         let carregandoExt = false;
 
-        async function carregarHist() {
-            if (carregandoHist) return;
-            carregandoHist = true;
-            
+        function renderizarHistorico(snapshot) {
             const lista = $('listaHist');
-            if (!lista || !db || !usuario) {
-                carregandoHist = false;
-                return;
-            }
+            if (!lista) return;
             
-            lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
+            const itens = [];
             
-            try {
-                const snapPedidos = await db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
-                const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
+            snapshot.forEach(function(child) {
+                const s = child.val();
+                if (!s) return;
                 
-                const itens = [];
+                let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
                 
+                let statusTexto = 'Pendente';
+                let statusClasse = 'pendente';
+                let tagClasse = 'tag-pendente';
+                
+                if (s.status === 'concluido') {
+                    statusTexto = '✅ Pago';
+                    statusClasse = 'concluido';
+                    tagClasse = 'tag-concluido';
+                } else if (s.status === 'recusado') {
+                    statusTexto = '❌ Recusado';
+                    statusClasse = 'recusado';
+                    tagClasse = 'tag-recusado';
+                } else if (s.status === 'processando') {
+                    statusTexto = '⚡ Processando';
+                    statusClasse = 'processando';
+                    tagClasse = 'tag-processando';
+                } else if (s.status === 'pendente') {
+                    statusTexto = '⏱️ Aguardando aprovação';
+                    statusClasse = 'pendente';
+                    tagClasse = 'tag-pendente';
+                }
+                
+                itens.push({
+                    tipo: 'saque',
+                    id: child.key,
+                    titulo: 'Saque R$ ' + (s.valor ? s.valor.toFixed(2).replace('.', ',') : '0,00'),
+                    sub: (s.pontos || 0) + ' pontos',
+                    status: s.status || 'pendente',
+                    statusTexto: statusTexto,
+                    statusClasse: statusClasse,
+                    tagClasse: tagClasse,
+                    motivo: motivo,
+                    data: s.dataSolicitacao || 0,
+                    saqueInfo: s
+                });
+            });
+            
+            db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value').then(function(snapPedidos) {
                 snapPedidos.forEach(function(child) {
                     const p = child.val();
                     itens.push({
@@ -1636,50 +1853,12 @@
                         titulo: p.qtd + ' Diamantes',
                         sub: 'R$ ' + (p.preco ? p.preco.toFixed(2).replace('.', ',') : '0,00'),
                         status: p.status || 'pendente',
-                        motivo: p.motivo || p.motivoRejeicao || null,
+                        statusTexto: p.status === 'aprovado' ? '✅ Entregue' : '⏱️ Pendente',
+                        statusClasse: p.status === 'aprovado' ? 'aprovado' : 'pendente',
+                        tagClasse: p.status === 'aprovado' ? 'tag-aprovado' : 'tag-pendente',
+                        motivo: null,
                         data: p.data || 0,
                         saqueInfo: null
-                    });
-                });
-                
-                snapSaques.forEach(function(child) {
-                    const s = child.val();
-                    let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
-                    
-                    let statusTexto = 'Pendente';
-                    let statusClasse = 'pendente';
-                    let tagClasse = 'tag-pendente';
-                    
-                    if (s.status === 'concluido') {
-                        statusTexto = '✅ Pago';
-                        statusClasse = 'concluido';
-                        tagClasse = 'tag-concluido';
-                    } else if (s.status === 'recusado') {
-                        statusTexto = '❌ Recusado';
-                        statusClasse = 'recusado';
-                        tagClasse = 'tag-recusado';
-                    } else if (s.status === 'processando') {
-                        statusTexto = '⚡ Processando';
-                        statusClasse = 'processando';
-                        tagClasse = 'tag-processando';
-                    } else if (s.status === 'pendente') {
-                        statusTexto = '⏱️ Aguardando aprovação';
-                        statusClasse = 'pendente';
-                        tagClasse = 'tag-pendente';
-                    }
-                    
-                    itens.push({
-                        tipo: 'saque',
-                        id: child.key,
-                        titulo: 'Saque R$ ' + (s.valor ? s.valor.toFixed(2).replace('.', ',') : '0,00'),
-                        sub: (s.pontos || 0) + ' pontos',
-                        status: s.status || 'pendente',
-                        statusTexto: statusTexto,
-                        statusClasse: statusClasse,
-                        tagClasse: tagClasse,
-                        motivo: motivo,
-                        data: s.dataSolicitacao || 0,
-                        saqueInfo: s
                     });
                 });
                 
@@ -1687,7 +1866,6 @@
                 
                 if (itens.length === 0) {
                     lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhum pedido ainda</p>';
-                    carregandoHist = false;
                     return;
                 }
                 
@@ -1745,6 +1923,24 @@
                 }
                 
                 lista.innerHTML = html;
+            });
+        }
+
+        async function carregarHist(forcarAtualizacao = false) {
+            if (carregandoHist && !forcarAtualizacao) return;
+            carregandoHist = true;
+            
+            const lista = $('listaHist');
+            if (!lista || !db || !usuario) {
+                carregandoHist = false;
+                return;
+            }
+            
+            lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
+            
+            try {
+                const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
+                renderizarHistorico(snapSaques);
                 
             } catch(e) {
                 console.error('Erro ao carregar histórico:', e);
@@ -1861,12 +2057,14 @@
                 carregarExtrato();
             } else if (aba === 'saque') {
                 atualizarInfoLimite();
+                verificarSaquesPendentes();
             }
         }
 
         function sair() {
-            if (listenersAtivos.saques) {
-                listenersAtivos.saques.off();
+            if (saquesListener) {
+                saquesListener.off();
+                saquesListener = null;
             }
             
             localStorage.removeItem('mc_user');
