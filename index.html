@@ -168,6 +168,11 @@
             color: white;
         }
         
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .app-wrapper {
             height: 100%;
             width: 100%;
@@ -222,7 +227,6 @@
             height: calc(100% - 120px);
         }
         
-        /* ADICIONADO: Botão bola WhatsApp - LADO DIREITO */
         .btn-bola-whatsapp {
             position: fixed;
             bottom: 80px;
@@ -251,7 +255,6 @@
             display: flex;
         }
         
-        /* ADICIONADO: Botão bola Telegram - LADO ESQUERDO */
         .btn-bola-telegram {
             position: fixed;
             bottom: 80px;
@@ -279,7 +282,6 @@
         .btn-bola-telegram.show {
             display: flex;
         }
-        /* FIM ADICIONADO */
         
         .checkin {
             background: #1a1a1a;
@@ -483,6 +485,11 @@
             color: white;
         }
         
+        .btn-cinza {
+            background: #666;
+            color: white;
+        }
+        
         .hist-item {
             background: #1a1a1a;
             border-radius: 12px;
@@ -496,6 +503,8 @@
         
         .hist-item.pendente { border-left-color: #FFA500; }
         .hist-item.aprovado { border-left-color: #00C851; }
+        .hist-item.processando { border-left-color: #0088cc; }
+        .hist-item.concluido { border-left-color: #00C851; }
         .hist-item.recusado { border-left-color: #ff4444; }
         .hist-item.cancelado { border-left-color: #666; }
         
@@ -530,8 +539,32 @@
         
         .tag-pendente { background: #FFA500; color: #000; }
         .tag-aprovado { background: #00C851; color: white; }
+        .tag-processando { background: #0088cc; color: white; }
+        .tag-concluido { background: #00C851; color: white; }
         .tag-recusado { background: #ff4444; color: white; }
         .tag-cancelado { background: #666; color: white; }
+        
+        .timer-box {
+            background: rgba(0, 136, 204, 0.2);
+            border: 1px solid #0088cc;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .timer-text {
+            color: #0088cc;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .timer-count {
+            color: #FFD700;
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
         
         .hist-motivo {
             background: rgba(255, 68, 68, 0.15);
@@ -753,7 +786,6 @@
             <p style="color:#FFD700;margin-top:10px;font-size:14px;">Carregando...</p>
         </div>
 
-        <!-- ADICIONADO: Botões BOLA separados -->
         <button class="btn-bola-telegram" id="btnBolaTelegram" onclick="abrirTelegram()" title="Grupo Telegram">
             <i class="fab fa-telegram-plane"></i>
         </button>
@@ -761,7 +793,6 @@
         <button class="btn-bola-whatsapp" id="btnBolaWhatsApp" onclick="abrirSuporteWhatsApp()" title="Suporte WhatsApp">
             <i class="fab fa-whatsapp"></i>
         </button>
-        <!-- FIM ADICIONADO -->
 
         <div class="screen active" id="loginScreen">
             <div class="login-box">
@@ -891,9 +922,9 @@
                             <div class="item">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 0,20</h4>
-                                    <p>400 pontos</p>
+                                    <p>500 pontos</p>
                                 </div>
-                                <button class="btn-mini btn-verde" onclick="sacar(400, 0.20)">Sacar</button>
+                                <button class="btn-mini btn-verde" onclick="sacar(500, 0.20)">Sacar</button>
                             </div>
                             
                             <div class="item">
@@ -918,6 +949,14 @@
                                     <p>3.000 pontos</p>
                                 </div>
                                 <button class="btn-mini btn-verde" onclick="sacar(3000, 2.50)">Sacar</button>
+                            </div>
+                            
+                            <div class="item">
+                                <div>
+                                    <h4><i class="fas fa-money-bill-wave"></i> R$ 5,00</h4>
+                                    <p>8.000 pontos</p>
+                                </div>
+                                <button class="btn-mini btn-verde" onclick="sacar(8000, 5.00)">Sacar</button>
                             </div>
                             
                             <div style="height: 80px;"></div>
@@ -991,11 +1030,21 @@
             <div class="modal-box">
                 <h3>Confirmar Saque</h3>
                 <p>R$ <span id="valSaque">0</span> (<span id="ptsSaque">0</span> pts)</p>
-                <input type="text" class="modal-input" id="chavePix" placeholder="Chave PIX">
-                <input type="text" class="modal-input" id="nomePix" placeholder="Nome completo" autocomplete="name">
+                <input type="text" class="modal-input" id="chavePix" placeholder="Chave PIX (CPF, Celular, Email ou Chave Aleatória)">
+                <input type="text" class="modal-input" id="nomePix" placeholder="Nome completo do titular" autocomplete="name">
+                <select class="modal-input" id="tipoChavePix" style="margin-bottom: 10px;">
+                    <option value="">Selecione o tipo da chave</option>
+                    <option value="CPF">CPF</option>
+                    <option value="PHONE">Celular</option>
+                    <option value="EMAIL">E-mail</option>
+                    <option value="EVP">Chave Aleatória</option>
+                </select>
+                <p style="color:#FFD700;font-size:11px;margin-bottom:10px;">
+                    <i class="fas fa-clock"></i> Após confirmar, seu saque será processado em até 5 minutos automaticamente.
+                </p>
                 <div class="modal-btns">
                     <button class="btn btn-red" onclick="fecharModal('modalSaque')">Cancelar</button>
-                    <button class="btn btn-green" onclick="confirmarSaque()">Sacar</button>
+                    <button class="btn btn-green" onclick="confirmarSaque()">Confirmar Saque</button>
                 </div>
             </div>
         </div>
@@ -1027,11 +1076,13 @@
         let compraAtual = null;
         let saqueAtual = null;
         let girando = false;
+        let timersAtivos = {};
         
         const MAX_GIROS = 10;
         const BONUS_CHECKIN = 40;
         const PREMIOS = [3,5,8,10,12,15,18,20,25,30,35,40,45,50];
         const SUPORTE_WHATSAPP = '5582994331905';
+        const TEMPO_APROVACAO = 5 * 60 * 1000; // 5 minutos em ms
 
         // ==========================================
         // FUNÇÕES UTILITÁRIAS
@@ -1055,6 +1106,13 @@
             t.className = tipo || '';
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function formatarTempo(ms) {
+            const totalSegundos = Math.ceil(ms / 1000);
+            const minutos = Math.floor(totalSegundos / 60);
+            const segundos = totalSegundos % 60;
+            return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
         }
 
         // ==========================================
@@ -1353,22 +1411,37 @@
                 toast('Pontos insuficientes!', 'erro');
                 return;
             }
+            
+            // Verificar se já tem saque pendente
+            if (dados.saquesPendentes && Object.keys(dados.saquesPendentes).length > 0) {
+                toast('Você já tem um saque em andamento. Aguarde a conclusão!', 'erro');
+                return;
+            }
+            
             saqueAtual = { pontos, valor };
             $('valSaque').textContent = valor.toFixed(2).replace('.', ',');
             $('ptsSaque').textContent = pontos;
             $('modalSaque').classList.add('show');
             $('chavePix').value = '';
             $('nomePix').value = '';
+            $('tipoChavePix').value = '';
         }
 
-        function confirmarSaque() {
+        async function confirmarSaque() {
             if (!saqueAtual || !db || !usuario || !ref || !dados) return;
             
             const chave = $('chavePix').value.trim();
             const nome = $('nomePix').value.trim();
+            const tipoChave = $('tipoChavePix').value;
             
-            if (!chave || !nome) {
+            if (!chave || !nome || !tipoChave) {
                 toast('Preencha todos os campos!', 'erro');
+                return;
+            }
+            
+            // Validar formato da chave
+            if (tipoChave === 'CPF' && !/^\d{11}$/.test(chave.replace(/\D/g, ''))) {
+                toast('CPF inválido! Digite apenas números (11 dígitos)', 'erro');
                 return;
             }
             
@@ -1376,26 +1449,50 @@
             const novoTotal = pontosAtual - saqueAtual.pontos;
             
             const saqueID = 'S' + Date.now();
+            const timestampSolicitacao = Date.now();
+            const timestampAprovacao = timestampSolicitacao + TEMPO_APROVACAO;
+            
             const saque = {
                 id: saqueID,
                 userId: usuario.id,
                 userNome: usuario.nome,
                 pontos: saqueAtual.pontos,
                 valor: saqueAtual.valor,
-                chave: chave,
-                nome: nome,
+                chavePix: chave,
+                nomePix: nome,
+                tipoChavePix: tipoChave,
                 status: 'pendente',
-                data: Date.now()
+                subStatus: 'aguardando_aprovacao', // aguardando_aprovacao, processando, concluido
+                dataSolicitacao: timestampSolicitacao,
+                dataAprovacaoAutomatica: timestampAprovacao,
+                dataProcessamento: null,
+                dataConclusao: null,
+                txid: null,
+                processadoPor: null, // 'sistema' ou 'manual'
+                aprovadoPor: null,
+                motivoRecusa: null
             };
             
-            db.ref('saques/' + saqueID).set(saque);
-            ref.child('saques/' + saqueID).set(saque);
-            ref.update({ pontos: novoTotal });
+            // Salvar nos dois lugares
+            await db.ref('saques/' + saqueID).set(saque);
+            await ref.child('saques/' + saqueID).set(saque);
+            await ref.child('saquesPendentes/' + saqueID).set(true);
+            await ref.update({ pontos: novoTotal });
             
-            addExtrato('saque', 'Solicitacao de Saque R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
+            addExtrato('saque', 'Saque solicitado R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
             
             fecharModal('modalSaque');
-            toast('Saque solicitado!', 'ok');
+            toast('Saque solicitado! Será processado em até 5 minutos.', 'ok');
+            
+            // Iniciar monitoramento do timer
+            iniciarMonitoramentoSaque(saqueID, timestampAprovacao);
+        }
+
+        function iniciarMonitoramentoSaque(saqueID, timestampAprovacao) {
+            // Atualizar a tela de histórico se estiver aberta
+            if ($('tabHist').classList.contains('active')) {
+                carregarHist();
+            }
         }
 
         function fecharModal(id) {
@@ -1418,14 +1515,12 @@
             window.open('https://wa.me/' + SUPORTE_WHATSAPP + '?text=' + mensagem, '_blank');
         }
 
-        // ADICIONADO: Função para abrir Telegram
         function abrirTelegram() {
             window.open('https://t.me/+eVzOaVM2xehhNzkx', '_blank');
         }
-        // FIM ADICIONADO
 
         // ==========================================
-        // HISTÓRICO E EXTRATO - CORRIGIDO
+        // HISTÓRICO E EXTRATO
         // ==========================================
         let carregandoHist = false;
         let carregandoExt = false;
@@ -1443,15 +1538,8 @@
             lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando...</p>';
             
             try {
-                console.log('Carregando histórico para usuário:', usuario.id);
-                
-                // Busca pedidos
                 const snapPedidos = await db.ref('pedidos').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
-                console.log('Pedidos encontrados:', snapPedidos.numChildren());
-                
-                // Busca saques
                 const snapSaques = await db.ref('saques').orderByChild('userId').equalTo(usuario.id).limitToLast(20).once('value');
-                console.log('Saques encontrados:', snapSaques.numChildren());
                 
                 const itens = [];
                 
@@ -1463,20 +1551,25 @@
                         sub: 'R$ ' + (p.preco ? p.preco.toFixed(2).replace('.', ',') : '0,00'),
                         status: p.status || 'pendente',
                         motivo: p.motivo || p.motivoRejeicao || null,
-                        data: p.data || 0
+                        data: p.data || 0,
+                        saqueInfo: null
                     });
                 });
                 
                 snapSaques.forEach(function(child) {
                     const s = child.val();
                     let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
+                    let subStatus = s.subStatus || 'aguardando_aprovacao';
+                    
                     itens.push({
                         tipo: 'saque',
                         titulo: 'Saque R$ ' + (s.valor ? s.valor.toFixed(2).replace('.', ',') : '0,00'),
                         sub: (s.pontos || 0) + ' pontos',
                         status: s.status || 'pendente',
+                        subStatus: subStatus,
                         motivo: motivo,
-                        data: s.data || 0
+                        data: s.dataSolicitacao || 0,
+                        saqueInfo: s
                     });
                 });
                 
@@ -1491,9 +1584,9 @@
                 const statusNome = { 
                     'pendente': ['Pendente', 'pendente', 'tag-pendente'], 
                     'aprovado': ['Aprovado', 'aprovado', 'tag-aprovado'], 
-                    'aprovada': ['Aprovado', 'aprovado', 'tag-aprovado'],
+                    'processando': ['Processando', 'processando', 'tag-processando'],
+                    'concluido': ['Concluído', 'concluido', 'tag-concluido'],
                     'recusado': ['Recusado', 'recusado', 'tag-recusado'],
-                    'rejeitado': ['Recusado', 'recusado', 'tag-recusado'],
                     'cancelado': ['Cancelado', 'cancelado', 'tag-cancelado']
                 };
                 
@@ -1501,12 +1594,34 @@
                 for (let i = 0; i < itens.length && i < 30; i++) {
                     const item = itens[i];
                     const status = item.status || 'pendente';
-                    const statusLower = status.toLowerCase();
-                    const info = statusNome[statusLower] || ['Pendente', 'pendente', 'tag-pendente'];
+                    const subStatus = item.subStatus || '';
+                    const statusLower = status === 'pendente' && subStatus ? subStatus : status.toLowerCase();
+                    const info = statusNome[statusLower] || statusNome['pendente'];
                     
                     let motivoHtml = '';
                     if (item.motivo) {
                         motivoHtml = '<div class="hist-motivo"><strong>MOTIVO:</strong><div>' + item.motivo + '</div></div>';
+                    }
+                    
+                    let timerHtml = '';
+                    if (item.tipo === 'saque' && item.saqueInfo && item.saqueInfo.status === 'pendente') {
+                        const agora = Date.now();
+                        const dataAprovacao = item.saqueInfo.dataAprovacaoAutomatica;
+                        
+                        if (dataAprovacao && agora < dataAprovacao) {
+                            const tempoRestante = dataAprovacao - agora;
+                            timerHtml = '<div class="timer-box">' +
+                                '<div class="timer-text"><i class="fas fa-clock"></i> Aprovação automática em:</div>' +
+                                '<div class="timer-count" id="timer-' + item.saqueInfo.id + '">' + formatarTempo(tempoRestante) + '</div>' +
+                                '</div>';
+                            
+                            // Iniciar contador
+                            setTimeout(() => atualizarTimer(item.saqueInfo.id, dataAprovacao), 1000);
+                        } else if (item.saqueInfo.subStatus === 'processando') {
+                            timerHtml = '<div class="timer-box" style="border-color: #00C851; background: rgba(0, 200, 81, 0.2);">' +
+                                '<div class="timer-text" style="color: #00C851;"><i class="fas fa-sync fa-spin"></i> Processando PIX...</div>' +
+                                '</div>';
+                        }
                     }
                     
                     html += '<div class="hist-item ' + info[1] + '">' +
@@ -1517,12 +1632,12 @@
                         '</div>' +
                         '<span class="tag ' + info[2] + '">' + info[0] + '</span>' +
                         '</div>' +
+                        timerHtml +
                         motivoHtml +
                         '</div>';
                 }
                 
                 lista.innerHTML = html;
-                console.log('Histórico carregado com sucesso');
                 
             } catch(e) {
                 console.error('Erro ao carregar histórico:', e);
@@ -1530,6 +1645,24 @@
             } finally {
                 carregandoHist = false;
             }
+        }
+
+        function atualizarTimer(saqueID, timestampAprovacao) {
+            const el = $('timer-' + saqueID);
+            if (!el) return;
+            
+            const agora = Date.now();
+            const restante = timestampAprovacao - agora;
+            
+            if (restante <= 0) {
+                el.textContent = '00:00';
+                // Recarregar histórico para mostrar novo status
+                setTimeout(carregarHist, 2000);
+                return;
+            }
+            
+            el.textContent = formatarTempo(restante);
+            setTimeout(() => atualizarTimer(saqueID, timestampAprovacao), 1000);
         }
 
         async function carregarExtrato() {
@@ -1548,10 +1681,7 @@
             lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando extrato...</p>';
             
             try {
-                console.log('Carregando extrato para usuário:', usuario.id);
-                
                 const snap = await db.ref('users/' + usuario.id + '/extrato').orderByChild('data').limitToLast(30).once('value');
-                console.log('Itens de extrato:', snap.numChildren());
                 
                 if (!snap.exists()) {
                     lista.innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Nenhuma movimentacao ainda</p>';
@@ -1591,7 +1721,6 @@
                 }
                 
                 lista.innerHTML = html;
-                console.log('Extrato carregado com sucesso');
                 
             } catch(e) {
                 console.error('Erro ao carregar extrato:', e);
@@ -1663,7 +1792,6 @@
             $('listaExtrato').innerHTML = '<p style="text-align:center;color:#666;padding:30px;font-size:12px;">Carregando extrato...</p>';
         }
 
-        // Event listener para Enter no PIN
         $('pinInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') entrar();
         });
