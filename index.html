@@ -1076,7 +1076,7 @@
         let compraAtual = null;
         let saqueAtual = null;
         let girando = false;
-        let timersAtivos = {};
+        let listenersAtivos = {};
         
         const MAX_GIROS = 10;
         const BONUS_CHECKIN = 40;
@@ -1245,7 +1245,57 @@
                     verificarDia();
                     atualizarTela();
                 });
+                
+                // Iniciar monitoramento de saques em tempo real
+                monitorarMeusSaques();
             }
+        }
+
+        // ==========================================
+        // MONITORAMENTO DE SAQUES EM TEMPO REAL (NOVO)
+        // ==========================================
+        function monitorarMeusSaques() {
+            if (!db || !usuario) return;
+            
+            // Remover listener anterior se existir
+            if (listenersAtivos.saques) {
+                listenersAtivos.saques.off();
+            }
+            
+            // Monitorar mudanças nos saques do usuário em tempo real
+            listenersAtivos.saques = db.ref('saques').orderByChild('userId').equalTo(usuario.id);
+            
+            listenersAtivos.saques.on('child_changed', function(snapshot) {
+                const saque = snapshot.val();
+                if (!saque) return;
+                
+                // Se o saque foi concluído, mostrar notificação
+                if (saque.status === 'concluido' && saque.notificado !== true) {
+                    // Marcar como notificado para não repetir
+                    db.ref('saques/' + snapshot.key).update({ notificado: true });
+                    
+                    // Mostrar toast de sucesso
+                    toast('✅ Saque de R$ ' + saque.valor.toFixed(2) + ' confirmado!', 'ok');
+                    
+                    // Se estiver na aba de histórico, recarregar
+                    if ($('tabHist').classList.contains('active')) {
+                        carregarHist();
+                    }
+                }
+                
+                // Se foi recusado, mostrar motivo
+                if (saque.status === 'recusado' && saque.motivo && !saque.motivoMostrado) {
+                    db.ref('saques/' + snapshot.key).update({ motivoMostrado: true });
+                    
+                    setTimeout(() => {
+                        alert('❌ Saque recusado!\n\nMotivo: ' + saque.motivo + '\n\nSeus pontos foram devolvidos.');
+                    }, 500);
+                    
+                    if ($('tabHist').classList.contains('active')) {
+                        carregarHist();
+                    }
+                }
+            });
         }
 
         function verificarDia() {
@@ -1462,13 +1512,13 @@
                 nomePix: nome,
                 tipoChavePix: tipoChave,
                 status: 'pendente',
-                subStatus: 'aguardando_aprovacao', // aguardando_aprovacao, processando, concluido
+                subStatus: 'aguardando_aprovacao',
                 dataSolicitacao: timestampSolicitacao,
                 dataAprovacaoAutomatica: timestampAprovacao,
                 dataProcessamento: null,
                 dataConclusao: null,
                 txid: null,
-                processadoPor: null, // 'sistema' ou 'manual'
+                processadoPor: null,
                 aprovadoPor: null,
                 motivoRecusa: null
             };
@@ -1483,16 +1533,6 @@
             
             fecharModal('modalSaque');
             toast('Saque solicitado! Será processado em até 5 minutos.', 'ok');
-            
-            // Iniciar monitoramento do timer
-            iniciarMonitoramentoSaque(saqueID, timestampAprovacao);
-        }
-
-        function iniciarMonitoramentoSaque(saqueID, timestampAprovacao) {
-            // Atualizar a tela de histórico se estiver aberta
-            if ($('tabHist').classList.contains('active')) {
-                carregarHist();
-            }
         }
 
         function fecharModal(id) {
@@ -1520,7 +1560,7 @@
         }
 
         // ==========================================
-        // HISTÓRICO E EXTRATO
+        // HISTÓRICO E EXTRATO - CORRIGIDO
         // ==========================================
         let carregandoHist = false;
         let carregandoExt = false;
@@ -1547,6 +1587,7 @@
                     const p = child.val();
                     itens.push({
                         tipo: 'compra',
+                        id: child.key,
                         titulo: p.qtd + ' Diamantes',
                         sub: 'R$ ' + (p.preco ? p.preco.toFixed(2).replace('.', ',') : '0,00'),
                         status: p.status || 'pendente',
@@ -1561,12 +1602,44 @@
                     let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
                     let subStatus = s.subStatus || 'aguardando_aprovacao';
                     
+                    // Texto do status mais amigável
+                    let statusTexto = 'Pendente';
+                    let statusClasse = 'pendente';
+                    let tagClasse = 'tag-pendente';
+                    
+                    if (s.status === 'concluido') {
+                        statusTexto = '✅ Pago';
+                        statusClasse = 'concluido';
+                        tagClasse = 'tag-concluido';
+                    } else if (s.status === 'recusado') {
+                        statusTexto = '❌ Recusado';
+                        statusClasse = 'recusado';
+                        tagClasse = 'tag-recusado';
+                    } else if (s.status === 'processando') {
+                        if (s.subStatus === 'aguardando_manual' || s.erroPix) {
+                            statusTexto = '⏳ Aguardando';
+                            statusClasse = 'processando';
+                            tagClasse = 'tag-processando';
+                        } else {
+                            statusTexto = '⚡ Processando';
+                            statusClasse = 'processando';
+                            tagClasse = 'tag-processando';
+                        }
+                    } else if (s.status === 'pendente') {
+                        statusTexto = '⏱️ Em análise';
+                        statusClasse = 'pendente';
+                        tagClasse = 'tag-pendente';
+                    }
+                    
                     itens.push({
                         tipo: 'saque',
+                        id: child.key,
                         titulo: 'Saque R$ ' + (s.valor ? s.valor.toFixed(2).replace('.', ',') : '0,00'),
                         sub: (s.pontos || 0) + ' pontos',
                         status: s.status || 'pendente',
-                        subStatus: subStatus,
+                        statusTexto: statusTexto,
+                        statusClasse: statusClasse,
+                        tagClasse: tagClasse,
                         motivo: motivo,
                         data: s.dataSolicitacao || 0,
                         saqueInfo: s
@@ -1581,22 +1654,9 @@
                     return;
                 }
                 
-                const statusNome = { 
-                    'pendente': ['Pendente', 'pendente', 'tag-pendente'], 
-                    'aprovado': ['Aprovado', 'aprovado', 'tag-aprovado'], 
-                    'processando': ['Processando', 'processando', 'tag-processando'],
-                    'concluido': ['Concluído', 'concluido', 'tag-concluido'],
-                    'recusado': ['Recusado', 'recusado', 'tag-recusado'],
-                    'cancelado': ['Cancelado', 'cancelado', 'tag-cancelado']
-                };
-                
                 let html = '';
                 for (let i = 0; i < itens.length && i < 30; i++) {
                     const item = itens[i];
-                    const status = item.status || 'pendente';
-                    const subStatus = item.subStatus || '';
-                    const statusLower = status === 'pendente' && subStatus ? subStatus : status.toLowerCase();
-                    const info = statusNome[statusLower] || statusNome['pendente'];
                     
                     let motivoHtml = '';
                     if (item.motivo) {
@@ -1604,35 +1664,59 @@
                     }
                     
                     let timerHtml = '';
-                    if (item.tipo === 'saque' && item.saqueInfo && item.saqueInfo.status === 'pendente') {
-                        const agora = Date.now();
-                        const dataAprovacao = item.saqueInfo.dataAprovacaoAutomatica;
+                    let infoExtraHtml = '';
+                    
+                    if (item.tipo === 'saque' && item.saqueInfo) {
+                        const s = item.saqueInfo;
                         
-                        if (dataAprovacao && agora < dataAprovacao) {
-                            const tempoRestante = dataAprovacao - agora;
-                            timerHtml = '<div class="timer-box">' +
-                                '<div class="timer-text"><i class="fas fa-clock"></i> Aprovação automática em:</div>' +
-                                '<div class="timer-count" id="timer-' + item.saqueInfo.id + '">' + formatarTempo(tempoRestante) + '</div>' +
-                                '</div>';
+                        // Mostrar info do PIX se concluído
+                        if (s.status === 'concluido') {
+                            let txidTexto = s.txid || 'Manual';
+                            if (txidTexto.length > 20) {
+                                txidTexto = txidTexto.substring(0, 20) + '...';
+                            }
                             
-                            // Iniciar contador
-                            setTimeout(() => atualizarTimer(item.saqueInfo.id, dataAprovacao), 1000);
-                        } else if (item.saqueInfo.subStatus === 'processando') {
-                            timerHtml = '<div class="timer-box" style="border-color: #00C851; background: rgba(0, 200, 81, 0.2);">' +
-                                '<div class="timer-text" style="color: #00C851;"><i class="fas fa-sync fa-spin"></i> Processando PIX...</div>' +
+                            infoExtraHtml = '<div style="background:#0a0a0a;padding:10px;border-radius:8px;margin-top:10px;font-size:12px;">' +
+                                '<strong style="color:#00C851;"><i class="fas fa-check-circle"></i> PIX ENVIADO</strong><br>' +
+                                '<span style="color:#888;font-size:11px;">TXID: ' + txidTexto + '</span>' +
+                                (s.pagoManualmente ? '<br><span style="color:#FFD700;font-size:11px;"><i class="fas fa-hand-holding-usd"></i> Pago manualmente</span>' : '') +
+                                '</div>';
+                        }
+                        
+                        // Timer para aprovação automática (só se pendente)
+                        if (s.status === 'pendente') {
+                            const agora = Date.now();
+                            const dataAprovacao = s.dataAprovacaoAutomatica;
+                            
+                            if (dataAprovacao && agora < dataAprovacao) {
+                                const tempoRestante = dataAprovacao - agora;
+                                timerHtml = '<div class="timer-box">' +
+                                    '<div class="timer-text"><i class="fas fa-clock"></i> Aprovação em até:</div>' +
+                                    '<div class="timer-count" id="timer-' + item.id + '">' + formatarTempo(tempoRestante) + '</div>' +
+                                    '</div>';
+                                
+                                setTimeout(() => atualizarTimer(item.id, dataAprovacao), 1000);
+                            }
+                        }
+                        
+                        // Se está processando com erro, mostrar aviso
+                        if (s.status === 'processando' && (s.subStatus === 'aguardando_manual' || s.erroPix)) {
+                            infoExtraHtml = '<div style="background:rgba(255,193,7,0.1);border:1px solid #FFC107;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#FFC107;">' +
+                                '<i class="fas fa-exclamation-triangle"></i> Aguardando confirmação manual do administrador' +
                                 '</div>';
                         }
                     }
                     
-                    html += '<div class="hist-item ' + info[1] + '">' +
+                    html += '<div class="hist-item ' + item.statusClasse + '" id="saque-' + item.id + '">' +
                         '<div class="hist-header">' +
                         '<div>' +
                         '<div class="hist-titulo">' + item.titulo + '</div>' +
                         '<div class="hist-sub">' + item.sub + '</div>' +
                         '</div>' +
-                        '<span class="tag ' + info[2] + '">' + info[0] + '</span>' +
+                        '<span class="tag ' + item.tagClasse + '">' + item.statusTexto + '</span>' +
                         '</div>' +
                         timerHtml +
+                        infoExtraHtml +
                         motivoHtml +
                         '</div>';
                 }
@@ -1656,7 +1740,6 @@
             
             if (restante <= 0) {
                 el.textContent = '00:00';
-                // Recarregar histórico para mostrar novo status
                 setTimeout(carregarHist, 2000);
                 return;
             }
@@ -1774,6 +1857,11 @@
         }
 
         function sair() {
+            // Remover listeners
+            if (listenersAtivos.saques) {
+                listenersAtivos.saques.off();
+            }
+            
             localStorage.removeItem('mc_user');
             if (ref) {
                 ref.off();
