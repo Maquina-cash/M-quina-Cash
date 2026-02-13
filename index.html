@@ -777,6 +777,26 @@
             background: #333;
             border-radius: 2px;
         }
+        
+        .limite-info {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        
+        .limite-info h4 {
+            color: #FFD700;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .limite-info p {
+            color: #888;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -918,6 +938,11 @@
                     </div>
                     
                     <div class="tab-panel" id="tabSaque">
+                        <div class="limite-info" id="limiteBox">
+                            <h4><i class="fas fa-info-circle"></i> Limite de Saques</h4>
+                            <p id="limiteTexto">Você pode fazer 1 saque por dia</p>
+                        </div>
+                        
                         <div class="item-list">
                             <div class="item">
                                 <div>
@@ -1040,7 +1065,7 @@
                     <option value="EVP">Chave Aleatória</option>
                 </select>
                 <p style="color:#FFD700;font-size:11px;margin-bottom:10px;">
-                    <i class="fas fa-clock"></i> Após confirmar, seu saque será processado em até 5 minutos automaticamente.
+                    <i class="fas fa-clock"></i> Seu saque será processado em até 24h após aprovação do administrador.
                 </p>
                 <div class="modal-btns">
                     <button class="btn btn-red" onclick="fecharModal('modalSaque')">Cancelar</button>
@@ -1082,7 +1107,7 @@
         const BONUS_CHECKIN = 40;
         const PREMIOS = [3,5,8,10,12,15,18,20,25,30,35,40,45,50];
         const SUPORTE_WHATSAPP = '5582994331905';
-        const TEMPO_APROVACAO = 5 * 60 * 1000; // 5 minutos em ms
+        const LIMITE_SAQUES_PADRAO = 1; // Limite padrão de saques por dia
 
         // ==========================================
         // FUNÇÕES UTILITÁRIAS
@@ -1106,13 +1131,6 @@
             t.className = tipo || '';
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        function formatarTempo(ms) {
-            const totalSegundos = Math.ceil(ms / 1000);
-            const minutos = Math.floor(totalSegundos / 60);
-            const segundos = totalSegundos % 60;
-            return `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
         }
 
         // ==========================================
@@ -1204,7 +1222,10 @@
                         ultimoDia: hoje(),
                         fezCheckin: false,
                         criado: Date.now(),
-                        banido: false
+                        banido: false,
+                        limiteSaquesDia: LIMITE_SAQUES_PADRAO, // Limite padrão
+                        saquesHoje: 0,
+                        ultimoSaqueDia: ''
                     };
                     await db.ref('users/' + uid).set(novo);
                     usuario = { id: uid, ...novo };
@@ -1244,46 +1265,56 @@
                     
                     verificarDia();
                     atualizarTela();
+                    atualizarInfoLimite();
                 });
                 
-                // Iniciar monitoramento de saques em tempo real
                 monitorarMeusSaques();
             }
         }
 
-        // ==========================================
-        // MONITORAMENTO DE SAQUES EM TEMPO REAL (NOVO)
-        // ==========================================
+        function atualizarInfoLimite() {
+            if (!dados) return;
+            
+            const limite = dados.limiteSaquesDia || LIMITE_SAQUES_PADRAO;
+            const saquesHoje = dados.saquesHoje || 0;
+            const restante = Math.max(0, limite - saquesHoje);
+            
+            const limiteBox = $('limiteBox');
+            const limiteTexto = $('limiteTexto');
+            
+            if (limiteBox && limiteTexto) {
+                if (restante > 0) {
+                    limiteTexto.innerHTML = `Você pode fazer <strong style="color:#00C851">${restante}</strong> saque(s) hoje (limite: ${limite})`;
+                    limiteBox.style.borderColor = '#00C851';
+                } else {
+                    limiteTexto.innerHTML = `<strong style="color:#ff4444">Limite de saques atingido!</strong><br>Volte amanhã para sacar novamente.`;
+                    limiteBox.style.borderColor = '#ff4444';
+                }
+            }
+        }
+
         function monitorarMeusSaques() {
             if (!db || !usuario) return;
             
-            // Remover listener anterior se existir
             if (listenersAtivos.saques) {
                 listenersAtivos.saques.off();
             }
             
-            // Monitorar mudanças nos saques do usuário em tempo real
             listenersAtivos.saques = db.ref('saques').orderByChild('userId').equalTo(usuario.id);
             
             listenersAtivos.saques.on('child_changed', function(snapshot) {
                 const saque = snapshot.val();
                 if (!saque) return;
                 
-                // Se o saque foi concluído, mostrar notificação
                 if (saque.status === 'concluido' && saque.notificado !== true) {
-                    // Marcar como notificado para não repetir
                     db.ref('saques/' + snapshot.key).update({ notificado: true });
-                    
-                    // Mostrar toast de sucesso
                     toast('✅ Saque de R$ ' + saque.valor.toFixed(2) + ' confirmado!', 'ok');
                     
-                    // Se estiver na aba de histórico, recarregar
                     if ($('tabHist').classList.contains('active')) {
                         carregarHist();
                     }
                 }
                 
-                // Se foi recusado, mostrar motivo
                 if (saque.status === 'recusado' && saque.motivo && !saque.motivoMostrado) {
                     db.ref('saques/' + snapshot.key).update({ motivoMostrado: true });
                     
@@ -1305,7 +1336,9 @@
                 ref.update({
                     giros: MAX_GIROS,
                     ultimoDia: hoje(),
-                    fezCheckin: false
+                    fezCheckin: false,
+                    saquesHoje: 0,
+                    ultimoSaqueDia: hoje()
                 });
                 toast('Novo dia! Giros renovados!', 'ok');
             }
@@ -1462,6 +1495,15 @@
                 return;
             }
             
+            // Verificar limite de saques do dia
+            const limite = dados.limiteSaquesDia || LIMITE_SAQUES_PADRAO;
+            const saquesHoje = dados.saquesHoje || 0;
+            
+            if (saquesHoje >= limite) {
+                toast('Limite de saques diário atingido! Volte amanhã.', 'erro');
+                return;
+            }
+            
             // Verificar se já tem saque pendente
             if (dados.saquesPendentes && Object.keys(dados.saquesPendentes).length > 0) {
                 toast('Você já tem um saque em andamento. Aguarde a conclusão!', 'erro');
@@ -1497,10 +1539,9 @@
             
             const pontosAtual = dados.pontos || 0;
             const novoTotal = pontosAtual - saqueAtual.pontos;
+            const saquesHoje = (dados.saquesHoje || 0) + 1;
             
             const saqueID = 'S' + Date.now();
-            const timestampSolicitacao = Date.now();
-            const timestampAprovacao = timestampSolicitacao + TEMPO_APROVACAO;
             
             const saque = {
                 id: saqueID,
@@ -1513,8 +1554,7 @@
                 tipoChavePix: tipoChave,
                 status: 'pendente',
                 subStatus: 'aguardando_aprovacao',
-                dataSolicitacao: timestampSolicitacao,
-                dataAprovacaoAutomatica: timestampAprovacao,
+                dataSolicitacao: Date.now(),
                 dataProcessamento: null,
                 dataConclusao: null,
                 txid: null,
@@ -1523,16 +1563,21 @@
                 motivoRecusa: null
             };
             
-            // Salvar nos dois lugares
+            // Salvar nos dois lugares e atualizar contador de saques
             await db.ref('saques/' + saqueID).set(saque);
             await ref.child('saques/' + saqueID).set(saque);
             await ref.child('saquesPendentes/' + saqueID).set(true);
-            await ref.update({ pontos: novoTotal });
+            await ref.update({ 
+                pontos: novoTotal,
+                saquesHoje: saquesHoje,
+                ultimoSaqueDia: hoje()
+            });
             
             addExtrato('saque', 'Saque solicitado R$' + saqueAtual.valor.toFixed(2), -saqueAtual.pontos, novoTotal);
             
             fecharModal('modalSaque');
-            toast('Saque solicitado! Será processado em até 5 minutos.', 'ok');
+            toast('Saque solicitado! Aguarde aprovação do administrador.', 'ok');
+            atualizarInfoLimite();
         }
 
         function fecharModal(id) {
@@ -1560,7 +1605,7 @@
         }
 
         // ==========================================
-        // HISTÓRICO E EXTRATO - CORRIGIDO
+        // HISTÓRICO E EXTRATO
         // ==========================================
         let carregandoHist = false;
         let carregandoExt = false;
@@ -1600,9 +1645,7 @@
                 snapSaques.forEach(function(child) {
                     const s = child.val();
                     let motivo = s.motivo || s.motivoRejeicao || s.rejectionReason || s.razao || null;
-                    let subStatus = s.subStatus || 'aguardando_aprovacao';
                     
-                    // Texto do status mais amigável
                     let statusTexto = 'Pendente';
                     let statusClasse = 'pendente';
                     let tagClasse = 'tag-pendente';
@@ -1616,17 +1659,11 @@
                         statusClasse = 'recusado';
                         tagClasse = 'tag-recusado';
                     } else if (s.status === 'processando') {
-                        if (s.subStatus === 'aguardando_manual' || s.erroPix) {
-                            statusTexto = '⏳ Aguardando';
-                            statusClasse = 'processando';
-                            tagClasse = 'tag-processando';
-                        } else {
-                            statusTexto = '⚡ Processando';
-                            statusClasse = 'processando';
-                            tagClasse = 'tag-processando';
-                        }
+                        statusTexto = '⚡ Processando';
+                        statusClasse = 'processando';
+                        tagClasse = 'tag-processando';
                     } else if (s.status === 'pendente') {
-                        statusTexto = '⏱️ Em análise';
+                        statusTexto = '⏱️ Aguardando aprovação';
                         statusClasse = 'pendente';
                         tagClasse = 'tag-pendente';
                     }
@@ -1663,13 +1700,11 @@
                         motivoHtml = '<div class="hist-motivo"><strong>MOTIVO:</strong><div>' + item.motivo + '</div></div>';
                     }
                     
-                    let timerHtml = '';
                     let infoExtraHtml = '';
                     
                     if (item.tipo === 'saque' && item.saqueInfo) {
                         const s = item.saqueInfo;
                         
-                        // Mostrar info do PIX se concluído
                         if (s.status === 'concluido') {
                             let txidTexto = s.txid || 'Manual';
                             if (txidTexto.length > 20) {
@@ -1683,26 +1718,15 @@
                                 '</div>';
                         }
                         
-                        // Timer para aprovação automática (só se pendente)
-                        if (s.status === 'pendente') {
-                            const agora = Date.now();
-                            const dataAprovacao = s.dataAprovacaoAutomatica;
-                            
-                            if (dataAprovacao && agora < dataAprovacao) {
-                                const tempoRestante = dataAprovacao - agora;
-                                timerHtml = '<div class="timer-box">' +
-                                    '<div class="timer-text"><i class="fas fa-clock"></i> Aprovação em até:</div>' +
-                                    '<div class="timer-count" id="timer-' + item.id + '">' + formatarTempo(tempoRestante) + '</div>' +
-                                    '</div>';
-                                
-                                setTimeout(() => atualizarTimer(item.id, dataAprovacao), 1000);
-                            }
+                        if (s.status === 'processando') {
+                            infoExtraHtml = '<div style="background:rgba(0,136,204,0.1);border:1px solid #0088cc;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#0088cc;">' +
+                                '<i class="fas fa-sync fa-spin"></i> Seu saque está sendo processado pelo administrador' +
+                                '</div>';
                         }
                         
-                        // Se está processando com erro, mostrar aviso
-                        if (s.status === 'processando' && (s.subStatus === 'aguardando_manual' || s.erroPix)) {
+                        if (s.status === 'pendente') {
                             infoExtraHtml = '<div style="background:rgba(255,193,7,0.1);border:1px solid #FFC107;border-radius:8px;padding:10px;margin-top:10px;font-size:12px;color:#FFC107;">' +
-                                '<i class="fas fa-exclamation-triangle"></i> Aguardando confirmação manual do administrador' +
+                                '<i class="fas fa-clock"></i> Aguardando aprovação do administrador' +
                                 '</div>';
                         }
                     }
@@ -1715,7 +1739,6 @@
                         '</div>' +
                         '<span class="tag ' + item.tagClasse + '">' + item.statusTexto + '</span>' +
                         '</div>' +
-                        timerHtml +
                         infoExtraHtml +
                         motivoHtml +
                         '</div>';
@@ -1729,23 +1752,6 @@
             } finally {
                 carregandoHist = false;
             }
-        }
-
-        function atualizarTimer(saqueID, timestampAprovacao) {
-            const el = $('timer-' + saqueID);
-            if (!el) return;
-            
-            const agora = Date.now();
-            const restante = timestampAprovacao - agora;
-            
-            if (restante <= 0) {
-                el.textContent = '00:00';
-                setTimeout(carregarHist, 2000);
-                return;
-            }
-            
-            el.textContent = formatarTempo(restante);
-            setTimeout(() => atualizarTimer(saqueID, timestampAprovacao), 1000);
         }
 
         async function carregarExtrato() {
@@ -1853,11 +1859,12 @@
                 carregarHist();
             } else if (aba === 'extrato') {
                 carregarExtrato();
+            } else if (aba === 'saque') {
+                atualizarInfoLimite();
             }
         }
 
         function sair() {
-            // Remover listeners
             if (listenersAtivos.saques) {
                 listenersAtivos.saques.off();
             }
