@@ -1049,6 +1049,84 @@
         .pix-instrucoes i {
             margin-right: 5px;
         }
+
+        /* NOVO: ESTILOS DO AVISO DE CAIXA VAZIO */
+        .caixa-vazio-box {
+            background: linear-gradient(135deg, #ff4444, #ff6666);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 15px;
+            animation: pulsarCaixa 2s infinite;
+        }
+        
+        @keyframes pulsarCaixa {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 20px 5px rgba(255, 68, 68, 0.6); }
+        }
+        
+        .caixa-vazio-box i {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .caixa-vazio-box h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .caixa-vazio-box p {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .caixa-status-ok {
+            background: linear-gradient(135deg, #00C851, #00ff00);
+            color: #000;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .caixa-status-ok h4 {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .caixa-status-ok p {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .saque-bloqueado {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+        
+        .saque-bloqueado-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        
+        .saque-bloqueado-overlay span {
+            color: #ff4444;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
@@ -1303,6 +1381,11 @@
                     </div>
                     
                     <div class="tab-panel" id="tabSaque">
+                        <!-- NOVO: AVISO DE CAIXA -->
+                        <div id="caixaStatusBox">
+                            <!-- Será preenchido via JavaScript -->
+                        </div>
+                        
                         <div class="limite-info" id="limiteBox">
                             <h4><i class="fas fa-info-circle"></i> Limite de Saques</h4>
                             <p id="limiteTexto">Você pode fazer 1 saque por dia</p>
@@ -1312,8 +1395,8 @@
                             <p><i class="fas fa-exclamation-triangle"></i> <strong>Atenção:</strong> Você tem saques pendentes. Aguarde a aprovação do administrador.</p>
                         </div>
                         
-                        <div class="item-list">
-                            <div class="item">
+                        <div class="item-list" id="listaSaques">
+                            <div class="item" data-valor="0.20">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 0,20</h4>
                                     <p>500 pontos</p>
@@ -1321,7 +1404,7 @@
                                 <button class="btn-mini btn-verde" onclick="sacar(500, 0.20)">Sacar</button>
                             </div>
                             
-                            <div class="item">
+                            <div class="item" data-valor="0.50">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 0,50</h4>
                                     <p>900 pontos</p>
@@ -1329,7 +1412,7 @@
                                 <button class="btn-mini btn-verde" onclick="sacar(900, 0.50)">Sacar</button>
                             </div>
                             
-                            <div class="item">
+                            <div class="item" data-valor="1.20">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 1,20</h4>
                                     <p>1.800 pontos</p>
@@ -1337,7 +1420,7 @@
                                 <button class="btn-mini btn-verde" onclick="sacar(1800, 1.20)">Sacar</button>
                             </div>
                             
-                            <div class="item">
+                            <div class="item" data-valor="2.50">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 2,50</h4>
                                     <p>3.000 pontos</p>
@@ -1345,7 +1428,7 @@
                                 <button class="btn-mini btn-verde" onclick="sacar(3000, 2.50)">Sacar</button>
                             </div>
                             
-                            <div class="item">
+                            <div class="item" data-valor="5.00">
                                 <div>
                                     <h4><i class="fas fa-money-bill-wave"></i> R$ 5,00</h4>
                                     <p>8.000 pontos</p>
@@ -1545,6 +1628,8 @@
         let saquesListener = null;
         let saquesAntigos = [];
         let pedidoAtualId = null;
+        let caixaListener = null;
+        let saldoCaixa = 0;
         
         const MAX_GIROS = 10;
         const BONUS_CHECKIN = 40;
@@ -1713,6 +1798,7 @@
                 });
                 
                 iniciarMonitoramentoSaques();
+                iniciarMonitoramentoCaixa(); // NOVO: Monitorar caixa
             }
         }
 
@@ -1734,6 +1820,72 @@
                     limiteTexto.innerHTML = `<strong style="color:#ff4444">Limite de saques atingido!</strong><br>Volte amanhã para sacar novamente.`;
                     limiteBox.style.borderColor = '#ff4444';
                 }
+            }
+        }
+
+        // ==========================================
+        // NOVO: MONITORAMENTO DO CAIXA
+        // ==========================================
+        function iniciarMonitoramentoCaixa() {
+            if (!db) return;
+            
+            // Monitorar saldo do caixa em tempo real
+            caixaListener = db.ref('caixa/saldo');
+            caixaListener.on('value', function(snap) {
+                saldoCaixa = snap.val() || 0;
+                atualizarStatusCaixa();
+            });
+        }
+
+        function atualizarStatusCaixa() {
+            const box = $('caixaStatusBox');
+            if (!box) return;
+            
+            if (saldoCaixa <= 0) {
+                // CAIXA VAZIO - Mostrar aviso e bloquear saques
+                box.innerHTML = `
+                    <div class="caixa-vazio-box">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>CAIXA VAZIO</h3>
+                        <p>Aguarde recarga do administrador.<br>Saques temporariamente indisponíveis.</p>
+                    </div>
+                `;
+                
+                // Bloquear botões de saque
+                document.querySelectorAll('#listaSaques .item').forEach(item => {
+                    item.classList.add('saque-bloqueado');
+                    const btn = item.querySelector('button');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'INDISPONÍVEL';
+                        btn.style.background = '#666';
+                    }
+                });
+                
+            } else {
+                // CAIXA COM DINHEIRO - Mostrar saldo e liberar saques
+                box.innerHTML = `
+                    <div class="caixa-status-ok">
+                        <h4><i class="fas fa-check-circle"></i> CAIXA DISPONÍVEL</h4>
+                        <p>R$ ${saldoCaixa.toFixed(2).replace('.', ',')}</p>
+                    </div>
+                `;
+                
+                // Liberar botões de saque
+                document.querySelectorAll('#listaSaques .item').forEach(item => {
+                    item.classList.remove('saque-bloqueado');
+                    const valor = parseFloat(item.dataset.valor);
+                    const btn = item.querySelector('button');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Sacar';
+                        btn.style.background = '';
+                        btn.onclick = function() {
+                            const pontos = Math.round(valor * 1000); // Conversão aproximada
+                            sacar(pontos, valor);
+                        };
+                    }
+                });
             }
         }
 
@@ -2236,6 +2388,12 @@
         // SAQUES
         // ==========================================
         function sacar(pontos, valor) {
+            // NOVO: Verificar se caixa tem dinheiro
+            if (saldoCaixa <= 0) {
+                toast('CAIXA VAZIO - Aguarde recarga!', 'erro');
+                return;
+            }
+            
             if (!dados || (dados.pontos || 0) < pontos) {
                 toast('Pontos insuficientes!', 'erro');
                 return;
@@ -2260,6 +2418,13 @@
 
         async function confirmarSaque() {
             if (!saqueAtual || !db || !usuario || !ref || !dados) return;
+            
+            // NOVO: Verificar novamente se caixa tem dinheiro
+            if (saldoCaixa <= 0) {
+                toast('CAIXA VAZIO - Não é possível solicitar saque!', 'erro');
+                fecharModal('modalSaque');
+                return;
+            }
             
             const chave = $('chavePix').value.trim();
             const nome = $('nomePix').value.trim();
@@ -2633,6 +2798,7 @@
             } else if (aba === 'saque') {
                 atualizarInfoLimite();
                 verificarSaquesPendentes();
+                atualizarStatusCaixa(); // NOVO: Atualizar status do caixa ao entrar na aba
             }
         }
 
@@ -2640,6 +2806,11 @@
             if (saquesListener) {
                 saquesListener.off();
                 saquesListener = null;
+            }
+            
+            if (caixaListener) { // NOVO: Limpar listener do caixa
+                caixaListener.off();
+                caixaListener = null;
             }
             
             localStorage.removeItem('mc_user');
@@ -2651,6 +2822,7 @@
             dados = null;
             carregandoHist = false;
             carregandoExt = false;
+            saldoCaixa = 0;
             
             $('appScreen').classList.remove('active');
             $('loginScreen').classList.add('active');
