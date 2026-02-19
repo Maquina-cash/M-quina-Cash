@@ -1050,7 +1050,7 @@
             margin-right: 5px;
         }
 
-        /* NOVO: ESTILOS DO AVISO DE CAIXA VAZIO */
+        /* ESTILOS DO AVISO DE CAIXA */
         .caixa-vazio-box {
             background: linear-gradient(135deg, #ff4444, #ff6666);
             color: white;
@@ -1104,28 +1104,6 @@
             opacity: 0.5;
             pointer-events: none;
             filter: grayscale(100%);
-        }
-        
-        .saque-bloqueado-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            z-index: 10;
-        }
-        
-        .saque-bloqueado-overlay span {
-            color: #ff4444;
-            font-weight: bold;
-            font-size: 12px;
-            text-align: center;
-            padding: 10px;
         }
     </style>
 </head>
@@ -1381,7 +1359,7 @@
                     </div>
                     
                     <div class="tab-panel" id="tabSaque">
-                        <!-- NOVO: AVISO DE CAIXA -->
+                        <!-- AVISO DE CAIXA -->
                         <div id="caixaStatusBox">
                             <!-- Será preenchido via JavaScript -->
                         </div>
@@ -1434,6 +1412,14 @@
                                     <p>8.000 pontos</p>
                                 </div>
                                 <button class="btn-mini btn-verde" onclick="sacar(8000, 5.00)">Sacar</button>
+                            </div>
+                            
+                            <div class="item" data-valor="10.00">
+                                <div>
+                                    <h4><i class="fas fa-money-bill-wave"></i> R$ 10,00</h4>
+                                    <p>15.000 pontos</p>
+                                </div>
+                                <button class="btn-mini btn-verde" onclick="sacar(15000, 10.00)">Sacar</button>
                             </div>
                             
                             <div style="height: 80px;"></div>
@@ -1798,7 +1784,7 @@
                 });
                 
                 iniciarMonitoramentoSaques();
-                iniciarMonitoramentoCaixa(); // NOVO: Monitorar caixa
+                iniciarMonitoramentoCaixa();
             }
         }
 
@@ -1824,12 +1810,11 @@
         }
 
         // ==========================================
-        // NOVO: MONITORAMENTO DO CAIXA
+        // MONITORAMENTO DO CAIXA - CORRIGIDO
         // ==========================================
         function iniciarMonitoramentoCaixa() {
             if (!db) return;
             
-            // Monitorar saldo do caixa em tempo real
             caixaListener = db.ref('caixa/saldo');
             caixaListener.on('value', function(snap) {
                 saldoCaixa = snap.val() || 0;
@@ -1841,8 +1826,8 @@
             const box = $('caixaStatusBox');
             if (!box) return;
             
+            // Se caixa está zerado, mostra aviso e bloqueia todos como indisponível
             if (saldoCaixa <= 0) {
-                // CAIXA VAZIO - Mostrar aviso e bloquear saques
                 box.innerHTML = `
                     <div class="caixa-vazio-box">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -1851,7 +1836,7 @@
                     </div>
                 `;
                 
-                // Bloquear botões de saque
+                // Bloqueia todos os saques como INDISPONÍVEL (não esconde)
                 document.querySelectorAll('#listaSaques .item').forEach(item => {
                     item.classList.add('saque-bloqueado');
                     const btn = item.querySelector('button');
@@ -1861,32 +1846,54 @@
                         btn.style.background = '#666';
                     }
                 });
+                return;
+            }
+            
+            // Caixa tem dinheiro - mostra saldo disponível
+            box.innerHTML = `
+                <div class="caixa-status-ok">
+                    <h4><i class="fas fa-check-circle"></i> CAIXA DISPONÍVEL</h4>
+                    <p>R$ ${saldoCaixa.toFixed(2).replace('.', ',')}</p>
+                </div>
+            `;
+            
+            // Cada saque: libera se caixa >= valor, senão fica INDISPONÍVEL (visível mas bloqueado)
+            document.querySelectorAll('#listaSaques .item').forEach(item => {
+                const valorItem = parseFloat(item.dataset.valor);
+                const btn = item.querySelector('button');
                 
-            } else {
-                // CAIXA COM DINHEIRO - Mostrar saldo e liberar saques
-                box.innerHTML = `
-                    <div class="caixa-status-ok">
-                        <h4><i class="fas fa-check-circle"></i> CAIXA DISPONÍVEL</h4>
-                        <p>R$ ${saldoCaixa.toFixed(2).replace('.', ',')}</p>
-                    </div>
-                `;
-                
-                // Liberar botões de saque
-                document.querySelectorAll('#listaSaques .item').forEach(item => {
+                if (saldoCaixa >= valorItem) {
+                    // Caixa tem dinheiro suficiente - LIBERADO
                     item.classList.remove('saque-bloqueado');
-                    const valor = parseFloat(item.dataset.valor);
-                    const btn = item.querySelector('button');
                     if (btn) {
                         btn.disabled = false;
                         btn.textContent = 'Sacar';
                         btn.style.background = '';
                         btn.onclick = function() {
-                            const pontos = Math.round(valor * 1000); // Conversão aproximada
-                            sacar(pontos, valor);
+                            // CORREÇÃO: Usar os valores corretos de pontos conforme o HTML
+                            let pontos;
+                            switch(valorItem) {
+                                case 0.20: pontos = 500; break;
+                                case 0.50: pontos = 900; break;
+                                case 1.20: pontos = 1800; break;
+                                case 2.50: pontos = 3000; break;
+                                case 5.00: pontos = 8000; break;
+                                case 10.00: pontos = 15000; break;
+                                default: pontos = Math.round(valorItem * 1000);
+                            }
+                            sacar(pontos, valorItem);
                         };
                     }
-                });
-            }
+                } else {
+                    // Caixa NÃO tem dinheiro suficiente - INDISPONÍVEL (mas visível)
+                    item.classList.add('saque-bloqueado');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = 'INDISPONÍVEL';
+                        btn.style.background = '#666';
+                    }
+                }
+            });
         }
 
         // ==========================================
@@ -2183,7 +2190,6 @@
             
             fecharModal('modalCompra');
             
-            // Criar pedido no Firebase
             const pedidoID = 'P' + Date.now();
             pedidoAtualId = pedidoID;
             
@@ -2203,7 +2209,6 @@
                 await db.ref('pedidos/' + pedidoID).set(pedido);
                 await ref.child('pedidos/' + pedidoID).set(pedido);
                 
-                // Abrir modal do PIX
                 abrirModalPix(compraAtual.preco, compraAtual.nome, idJogo, nick, pedidoID);
                 
             } catch(e) {
@@ -2213,16 +2218,13 @@
         }
 
         function abrirModalPix(valor, produto, idJogo, nick, pedidoID) {
-            // Atualizar valor exibido
             $('pixValorDisplay').textContent = 'R$ ' + valor.toFixed(2).replace('.', ',');
             
-            // Gerar payload PIX (copia e cola)
             const pixPayload = gerarPixPayload(valor, pedidoID);
             $('pixCodeText').textContent = pixPayload;
             
-            // Gerar QR Code
             const qrContainer = $('pixQRCode');
-            qrContainer.innerHTML = ''; // Limpar anterior
+            qrContainer.innerHTML = '';
             
             try {
                 new QRCode(qrContainer, {
@@ -2242,43 +2244,27 @@
         }
 
         function gerarPixPayload(valor, pedidoID) {
-            // Formatar valor sem pontos, com 2 casas decimais
-            const valorStr = valor.toFixed(2).replace('.', '').replace(',', '');
+            let payload = '000201';
             
-            // Construir payload PIX manualmente
-            let payload = '000201'; // Payload Format Indicator
-            
-            // Merchant Account Information
             const merchantAccount = '0014br.gov.bcb.pix' + 
                                   '0114' + PIX_CHAVE.length + PIX_CHAVE;
             payload += '26' + merchantAccount.length + merchantAccount;
             
-            // Merchant Category Code
             payload += '52040000';
-            
-            // Transaction Currency (986 = BRL)
             payload += '5303986';
-            
-            // Transaction Amount
             payload += '54' + valor.toFixed(2).length + valor.toFixed(2);
-            
-            // Country Code
             payload += '5802BR';
             
-            // Merchant Name
             const nomeFormatado = PIX_NOME.substring(0, 25);
             payload += '59' + nomeFormatado.length.toString().padStart(2, '0') + nomeFormatado;
             
-            // Merchant City
             const cidadeFormatada = PIX_CIDADE.substring(0, 15);
             payload += '60' + cidadeFormatada.length.toString().padStart(2, '0') + cidadeFormatada;
             
-            // Additional Data Field (descrição do pedido)
             const descricao = 'Pedido ' + pedidoID;
             const additionalData = '05' + descricao.length.toString().padStart(2, '0') + descricao;
             payload += '62' + additionalData.length + additionalData;
             
-            // CRC16
             payload += '6304';
             const crc = calcularCRC16(payload);
             payload += crc;
@@ -2329,7 +2315,6 @@
             
             window.open('https://wa.me/' + MEU_WHATSAPP + '?text=' + mensagem, '_blank');
             
-            // Atualizar status do pedido
             atualizarPedidoPago();
         }
 
@@ -2350,7 +2335,6 @@
             
             window.open(MEU_TELEGRAM + '?start=' + encodeURIComponent(mensagem), '_blank');
             
-            // Atualizar status do pedido
             atualizarPedidoPago();
         }
 
@@ -2385,12 +2369,12 @@
         }
 
         // ==========================================
-        // SAQUES
+        // SAQUES - CORRIGIDO
         // ==========================================
         function sacar(pontos, valor) {
-            // NOVO: Verificar se caixa tem dinheiro
-            if (saldoCaixa <= 0) {
-                toast('CAIXA VAZIO - Aguarde recarga!', 'erro');
+            // Verificar se caixa tem dinheiro suficiente para ESTE valor específico
+            if (saldoCaixa < valor) {
+                toast('CAIXA INSUFICIENTE para este saque!', 'erro');
                 return;
             }
             
@@ -2419,9 +2403,9 @@
         async function confirmarSaque() {
             if (!saqueAtual || !db || !usuario || !ref || !dados) return;
             
-            // NOVO: Verificar novamente se caixa tem dinheiro
-            if (saldoCaixa <= 0) {
-                toast('CAIXA VAZIO - Não é possível solicitar saque!', 'erro');
+            // Verificar novamente se caixa tem dinheiro suficiente para ESTE valor
+            if (saldoCaixa < saqueAtual.valor) {
+                toast('CAIXA INSUFICIENTE - Não é possível solicitar este saque!', 'erro');
                 fecharModal('modalSaque');
                 return;
             }
@@ -2798,7 +2782,7 @@
             } else if (aba === 'saque') {
                 atualizarInfoLimite();
                 verificarSaquesPendentes();
-                atualizarStatusCaixa(); // NOVO: Atualizar status do caixa ao entrar na aba
+                atualizarStatusCaixa();
             }
         }
 
@@ -2808,7 +2792,7 @@
                 saquesListener = null;
             }
             
-            if (caixaListener) { // NOVO: Limpar listener do caixa
+            if (caixaListener) {
                 caixaListener.off();
                 caixaListener = null;
             }
